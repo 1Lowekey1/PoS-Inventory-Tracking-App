@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Booth POS - Offline Cashier System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="nav-bar">
+        <button class="nav-btn active" data-screen="cashier">
+            <span class="nav-icon">💰</span>
+            <span class="nav-label">Cashier</span>
+        </button>
+        <button class="nav-btn" data-screen="products">
+            <span class="nav-icon">📋</span>
+            <span class="nav-label">Products</span>
+        </button>
+        <button class="nav-btn" data-screen="inventory">
+            <span class="nav-icon">📦</span>
+            <span class="nav-label">Inventory</span>
+        </button>
+        <button class="nav-btn" data-screen="reports">
+            <span class="nav-icon">📊</span>
+            <span class="nav-label">Reports</span>
+        </button>
+    </nav>
+
+    <!-- Screen: Cashier -->
+    <div class="screen active" id="cashier-screen">
+        <div class="screen-header">
+            <h1>Cashier</h1>
+            <div class="header-stats">
+                <div class="stat-box">
+                    <span class="stat-label">Sales Today</span>
+                    <span class="stat-value" id="total-sales">₱0.00</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Items Sold</span>
+                    <span class="stat-value" id="items-sold">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="product-grid" id="product-grid">
+            <!-- Product buttons will be dynamically generated -->
+            <div class="empty-state">
+                <p>No active products</p>
+                <p class="empty-hint">Add products in the Products tab</p>
+            </div>
+        </div>
+
+        <div class="cashier-actions">
+            <button class="action-btn secondary" id="undo-sale-btn" disabled>
+                <span>↶</span> Undo Last Sale
+            </button>
+        </div>
+    </div>
+
+    <!-- Screen: Products -->
+    <div class="screen" id="products-screen">
+        <div class="screen-header">
+            <h1>Products</h1>
+            <button class="btn-primary" id="add-product-btn">+ New Product</button>
+        </div>
+
+        <div class="product-list" id="product-list">
+            <!-- Product cards will be dynamically generated -->
+            <div class="empty-state">
+                <p>No products yet</p>
+                <p class="empty-hint">Create your first product</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen: Inventory -->
+    <div class="screen" id="inventory-screen">
+        <div class="screen-header">
+            <h1>Inventory</h1>
+            <button class="btn-primary" id="add-ingredient-btn">+ New Ingredient</button>
+        </div>
+
+        <div class="ingredient-list" id="ingredient-list">
+            <!-- Ingredient cards will be dynamically generated -->
+            <div class="empty-state">
+                <p>No ingredients yet</p>
+                <p class="empty-hint">Add your first ingredient</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen: Reports -->
+    <div class="screen" id="reports-screen">
+        <div class="screen-header">
+            <h1>Reports</h1>
+            <div class="report-actions">
+                <button class="btn-secondary" id="export-data-btn">💾 Backup Data</button>
+                <button class="btn-danger" id="reset-event-btn">🔄 Reset Event</button>
+            </div>
+        </div>
+
+        <div class="report-container">
+            <div class="report-section">
+                <h2>Today's Summary</h2>
+                <div class="report-stats">
+                    <div class="report-stat-card">
+                        <span class="report-label">Total Revenue</span>
+                        <span class="report-value" id="report-revenue">₱0.00</span>
+                    </div>
+                    <div class="report-stat-card">
+                        <span class="report-label">Estimated Cost</span>
+                        <span class="report-value" id="report-cost">₱0.00</span>
+                    </div>
+                    <div class="report-stat-card success">
+                        <span class="report-label">Estimated Profit</span>
+                        <span class="report-value" id="report-profit">₱0.00</span>
+                    </div>
+                    <div class="report-stat-card">
+                        <span class="report-label">Items Sold</span>
+                        <span class="report-value" id="report-items">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="report-section">
+                <h2>Sales by Product</h2>
+                <div class="sales-breakdown" id="sales-breakdown">
+                    <p class="empty-hint">No sales yet</p>
+                </div>
+            </div>
+
+            <div class="report-section">
+                <h2>Recent Transactions</h2>
+                <div class="transaction-list" id="transaction-list">
+                    <p class="empty-hint">No transactions yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add/Edit Ingredient -->
+    <div class="modal" id="ingredient-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="ingredient-modal-title">Add Ingredient</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="ingredient-form">
+                <input type="hidden" id="ingredient-id">
+                
+                <div class="form-group">
+                    <label>Ingredient Name *</label>
+                    <input type="text" id="ingredient-name" required placeholder="e.g., Coffee, Milk, Cup">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Unit *</label>
+                        <select id="ingredient-unit" required>
+                            <option value="">Select unit</option>
+                            <option value="grams">Grams (g)</option>
+                            <option value="ml">Milliliters (ml)</option>
+                            <option value="pcs">Pieces (pcs)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Cost per Unit (₱) *</label>
+                        <input type="number" id="ingredient-cost" step="0.01" min="0" required placeholder="0.00">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Current Stock *</label>
+                        <input type="number" id="ingredient-stock" step="0.01" min="0" required placeholder="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Low Stock Alert</label>
+                        <input type="number" id="ingredient-threshold" step="0.01" min="0" placeholder="10">
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary modal-cancel">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Ingredient</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Add/Edit Product -->
+    <div class="modal" id="product-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="product-modal-title">Add Product</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="product-form">
+                <input type="hidden" id="product-id">
+                
+                <div class="form-group">
+                    <label>Product Name *</label>
+                    <input type="text" id="product-name" required placeholder="e.g., Iced Latte">
+                </div>
+
+                <div class="form-group">
+                    <label>Selling Price (₱) *</label>
+                    <input type="number" id="product-price" step="0.01" min="0" required placeholder="0.00">
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="product-active" checked>
+                        <span>Active (available for sale)</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label>Recipe (Ingredients) *</label>
+                    <div id="recipe-builder">
+                        <!-- Recipe items will be added here -->
+                    </div>
+                    <button type="button" class="btn-secondary" id="add-recipe-item-btn">+ Add Ingredient</button>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary modal-cancel">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmation -->
+    <div class="modal" id="confirm-modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2 id="confirm-title">Confirm</h2>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-message"></p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" id="confirm-cancel">Cancel</button>
+                <button class="btn-danger" id="confirm-ok">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
