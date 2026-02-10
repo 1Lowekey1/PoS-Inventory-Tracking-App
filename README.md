@@ -53,30 +53,51 @@ A fully dynamic, offline-first point-of-sale (POS) system designed for food and 
 
 **Example Ingredients:**
 ```
+Salted Caramel Syrup
+- Unit: ml
+- Batch Cost: ₱780.00 (what you paid)
+- Batch Quantity: 1000 ml (what you bought)
+- Unit Cost: ₱0.78/ml (auto-calculated)
+- Alert: 100 ml
+
 Coffee
 - Unit: grams
-- Cost: ₱0.86
-- Stock: 500
-- Alert: 100
+- Batch Cost: ₱430.00
+- Batch Quantity: 500 grams
+- Unit Cost: ₱0.86/g (auto-calculated)
+- Alert: 100 g
 
-Milk
-- Unit: grams
-- Cost: ₱0.28
-- Stock: 1000
-- Alert: 200
+Fresh Milk
+- Unit: ml
+- Batch Cost: ₱280.00
+- Batch Quantity: 1000 ml
+- Unit Cost: ₱0.28/ml (auto-calculated)
+- Alert: 200 ml
 
 Cup (16oz)
 - Unit: pcs
-- Cost: ₱4.30
-- Stock: 50
-- Alert: 10
-
-Salted Caramel Syrup
-- Unit: ml
-- Cost: ₱0.50
-- Stock: 300
-- Alert: 50
+- Batch Cost: ₱215.00
+- Batch Quantity: 50 pieces
+- Unit Cost: ₱4.30/pc (auto-calculated)
+- Alert: 10 pcs
 ```
+
+**How Costing Works (CRITICAL):**
+
+The system uses a **batch purchase model** to ensure accurate per-drink costs:
+
+1. **You Enter Batch Data:**
+   - Batch Cost: ₱780 (total paid)
+   - Batch Quantity: 1000 ml (total amount)
+
+2. **System Computes Unit Cost:**
+   - Unit Cost = ₱780 ÷ 1000 ml = ₱0.78/ml
+
+3. **Per-Drink Cost is Calculated:**
+   - Recipe uses 20 ml syrup
+   - Cost = ₱0.78/ml × 20 ml = ₱15.60
+
+**This prevents the ₱780 batch cost from being incorrectly assigned to a single drink!**
 
 #### Step 2: Create Products
 1. Tap **Products** tab
@@ -269,54 +290,97 @@ location.reload();
 
 ### Data Models
 
-**Ingredient:**
+**Ingredient (BATCH PURCHASE MODEL):**
 ```json
 {
   "id": "unique_id",
-  "name": "Coffee",
-  "unit": "grams",
-  "costPerUnit": 0.86,
-  "currentStock": 500,
+  "name": "Salted Caramel Syrup",
+  "unit": "ml",
+  "totalCost": 780.00,
+  "totalQuantity": 1000,
   "lowStockThreshold": 100
 }
 ```
+**CRITICAL:** Unit cost (₱0.78/ml) is NEVER stored - computed dynamically as `totalCost / totalQuantity`
 
-**Product:**
+**Product (RECIPE MODEL):**
 ```json
 {
   "id": "unique_id",
-  "name": "Iced Latte",
+  "name": "Iced Caramel Latte",
   "sellingPrice": 120.00,
   "active": true,
   "recipe": [
     {
       "ingredientId": "ingredient_id",
-      "quantity": 18
+      "quantity": 20
     }
   ]
 }
 ```
+**CRITICAL:** Product has NO cost field - cost computed from ingredients
 
-**Sale:**
+**Sale (AUDIT TRAIL):**
 ```json
 {
   "id": "unique_id",
   "timestamp": "2026-02-10T10:30:00.000Z",
   "productId": "product_id",
-  "productName": "Iced Latte",
+  "productName": "Iced Caramel Latte",
   "sellingPrice": 120.00,
   "paymentType": "cash",
   "ingredientSnapshot": [
     {
       "ingredientId": "ingredient_id",
-      "ingredientName": "Coffee",
-      "quantity": 18,
-      "unit": "grams",
-      "costPerUnit": 0.86,
-      "totalCost": 15.48
+      "ingredientName": "Salted Caramel Syrup",
+      "quantity": 20,
+      "unit": "ml",
+      "unitCost": 0.78,
+      "totalCost": 15.60
     }
   ]
 }
+```
+
+### Cost Computation Logic
+
+**The system NEVER assigns batch costs to individual drinks.**
+
+**Step 1: Compute Unit Cost**
+```
+unit_cost = total_cost ÷ total_quantity
+Example: ₱780 ÷ 1000ml = ₱0.78/ml
+```
+
+**Step 2: Compute Ingredient Cost for ONE Drink**
+```
+ingredient_cost = unit_cost × quantity_used
+Example: ₱0.78/ml × 20ml = ₱15.60
+```
+
+**Step 3: Compute Total Drink Cost**
+```
+drink_cost = sum(all ingredient_costs)
+```
+
+**Example Drink:**
+```
+Iced Caramel Latte (20ml syrup, 18g coffee, 150ml milk, 1 cup)
+- Syrup: ₱0.78/ml × 20ml = ₱15.60
+- Coffee: ₱0.86/g × 18g = ₱15.48
+- Milk: ₱0.28/ml × 150ml = ₱42.00
+- Cup: ₱4.30/pc × 1pc = ₱4.30
+= Total Cost: ₱77.38
+Selling Price: ₱120.00
+Profit: ₱42.62 (35.5%)
+```
+
+**Test Case (MUST PASS):**
+```
+Given: Syrup costs ₱780 for 1000ml
+Recipe uses: 20ml
+Expected cost: ₱15.60
+NOT: ₱780 or ₱214 or any value > ₱20
 ```
 
 ### Browser Storage
@@ -469,6 +533,6 @@ Cashier → ↶ Undo Last Sale → Confirm
 
 ---
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Last Updated:** February 2026  
 **Designed for:** Food & beverage booths, pop-ups, events

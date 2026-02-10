@@ -78,7 +78,12 @@
     <div class="screen" id="inventory-screen">
         <div class="screen-header">
             <h1>Inventory</h1>
-            <button class="btn-primary" id="add-ingredient-btn">+ New Ingredient</button>
+            <div class="inventory-header-actions">
+                <button class="btn-secondary" id="restock-low-btn" style="display: none;">
+                    📦 Restock Low Items
+                </button>
+                <button class="btn-primary" id="add-ingredient-btn">+ New Ingredient</button>
+            </div>
         </div>
 
         <div class="ingredient-list" id="ingredient-list">
@@ -154,33 +159,40 @@
                     <input type="text" id="ingredient-name" required placeholder="e.g., Coffee, Milk, Cup">
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Unit *</label>
-                        <select id="ingredient-unit" required>
-                            <option value="">Select unit</option>
-                            <option value="grams">Grams (g)</option>
-                            <option value="ml">Milliliters (ml)</option>
-                            <option value="pcs">Pieces (pcs)</option>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label>Unit *</label>
+                    <select id="ingredient-unit" required>
+                        <option value="">Select unit</option>
+                        <option value="grams">Grams (g)</option>
+                        <option value="ml">Milliliters (ml)</option>
+                        <option value="pcs">Pieces (pcs)</option>
+                    </select>
+                </div>
 
-                    <div class="form-group">
-                        <label>Cost per Unit (₱) *</label>
-                        <input type="number" id="ingredient-cost" step="0.01" min="0" required placeholder="0.00">
-                    </div>
+                <div class="form-group">
+                    <label>Batch Purchase Cost (₱) *</label>
+                    <input type="number" id="ingredient-total-cost" step="0.01" min="0" required placeholder="e.g., 780.00">
+                    <small style="color: var(--text-secondary); font-size: 0.75rem;">Total cost you paid for this batch</small>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Current Stock *</label>
-                        <input type="number" id="ingredient-stock" step="0.01" min="0" required placeholder="0">
+                        <label>Batch Quantity *</label>
+                        <input type="number" id="ingredient-total-quantity" step="0.01" min="0" required placeholder="e.g., 1000">
+                        <small style="color: var(--text-secondary); font-size: 0.75rem;">Total amount purchased</small>
                     </div>
 
                     <div class="form-group">
-                        <label>Low Stock Alert</label>
-                        <input type="number" id="ingredient-threshold" step="0.01" min="0" placeholder="10">
+                        <label>Unit Cost (Auto)</label>
+                        <input type="text" id="ingredient-unit-cost-display" disabled placeholder="₱0.00" style="background: var(--background);">
+                        <small style="color: var(--text-secondary); font-size: 0.75rem;">Computed automatically</small>
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Low Stock Alert</label>
+                    <input type="number" id="ingredient-threshold" step="0.01" min="0" placeholder="10">
+                    <small style="color: var(--text-secondary); font-size: 0.75rem;">Alert when quantity falls below this</small>
                 </div>
 
                 <div class="modal-actions">

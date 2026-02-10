@@ -8,17 +8,27 @@
 3. Opens in your browser - that's it!
 
 ### Step 2: Add Your First Ingredient
+
+**IMPORTANT:** Enter what you actually paid for the batch!
+
 1. Tap **Inventory** (bottom nav)
 2. Tap **+ New Ingredient**
 3. Example setup:
    ```
-   Name: Coffee
-   Unit: grams
-   Cost per Unit: 0.86
-   Current Stock: 500
+   Name: Salted Caramel Syrup
+   Unit: ml
+   Batch Purchase Cost: 780.00 (what you paid)
+   Batch Quantity: 1000 (how much you bought)
+   Unit Cost: ₱0.78/ml (auto-calculated)
    Low Stock Alert: 100
    ```
 4. Tap **Save Ingredient**
+
+**How It Works:**
+- You bought 1000ml syrup for ₱780
+- System calculates: ₱780 ÷ 1000ml = ₱0.78 per ml
+- When a drink uses 20ml, cost = ₱0.78 × 20 = ₱15.60
+- **NOT ₱780!** The batch cost is never assigned to one drink.
 
 ### Step 3: Create Your First Product
 1. Tap **Products** (bottom nav)
@@ -68,35 +78,40 @@ Copy this setup to get started quickly:
 
 ### Ingredients to Add:
 
+**Salted Caramel Syrup**
+- Unit: ml
+- Batch Cost: ₱780.00
+- Batch Quantity: 1000 ml
+- Unit Cost: ₱0.78/ml (auto)
+- Alert: 100 ml
+
 **Coffee Beans**
 - Unit: grams
-- Cost: ₱0.86/g
-- Stock: 1000g
-- Alert: 200g
+- Batch Cost: ₱430.00
+- Batch Quantity: 500 g
+- Unit Cost: ₱0.86/g (auto)
+- Alert: 100 g
 
 **Fresh Milk**
 - Unit: ml
-- Cost: ₱0.28/ml
-- Stock: 2000ml
-- Alert: 500ml
+- Batch Cost: ₱280.00
+- Batch Quantity: 1000 ml
+- Unit Cost: ₱0.28/ml (auto)
+- Alert: 200 ml
 
 **16oz Cup**
 - Unit: pcs
-- Cost: ₱4.30/pc
-- Stock: 100
-- Alert: 20
+- Batch Cost: ₱215.00
+- Batch Quantity: 50 pcs
+- Unit Cost: ₱4.30/pc (auto)
+- Alert: 10 pcs
 
 **Plastic Straw**
 - Unit: pcs
-- Cost: ₱0.38/pc
-- Stock: 100
-- Alert: 20
-
-**Caramel Syrup**
-- Unit: ml
-- Cost: ₱0.50/ml
-- Stock: 500ml
-- Alert: 100ml
+- Batch Cost: ₱19.00
+- Batch Quantity: 50 pcs
+- Unit Cost: ₱0.38/pc (auto)
+- Alert: 10 pcs
 
 ### Products to Create:
 
