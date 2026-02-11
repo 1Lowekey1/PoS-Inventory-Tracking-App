@@ -43,8 +43,105 @@ class DataManager {
             sales: 'booth_sales',
             lastSale: 'booth_last_sale',
             stockSnapshot: 'booth_stock_snapshot',
-            eventCosts: 'booth_event_costs' // NEW: Fixed upfront event costs
+            eventCosts: 'booth_event_costs',
+            activeEvent: 'booth_active_event', // NEW: Current event session
+            eventHistory: 'booth_event_history', // NEW: Past events
+            settings: 'booth_settings' // NEW: User preferences
         };
+    }
+
+    /**
+     * Get active event session
+     */
+    getActiveEvent() {
+        const data = localStorage.getItem(this.storageKey.activeEvent);
+        return data ? JSON.parse(data) : null;
+    }
+
+    /**
+     * Start a new event
+     */
+    startEvent(eventData) {
+        const event = {
+            id: this.generateId(),
+            name: eventData.name || 'Unnamed Event',
+            startTime: new Date().toISOString(),
+            fixedCost: eventData.fixedCost,
+            startingInventory: JSON.parse(JSON.stringify(this.getIngredients())), // Deep copy snapshot
+            status: 'active'
+        };
+        
+        localStorage.setItem(this.storageKey.activeEvent, JSON.stringify(event));
+        
+        // Clear sales for new event
+        this.saveSales([]);
+        this.clearLastSale();
+        
+        return event;
+    }
+
+    /**
+     * End the current event
+     */
+    endEvent() {
+        const event = this.getActiveEvent();
+        if (!event || event.status !== 'active') return null;
+
+        const sales = this.getSales();
+        const totalRevenue = sales.reduce((sum, sale) => sum + sale.sellingPrice, 0);
+        const profit = totalRevenue - event.fixedCost;
+
+        // Finalize event
+        event.endTime = new Date().toISOString();
+        event.status = 'closed';
+        event.totalRevenue = totalRevenue;
+        event.profit = profit;
+        event.itemsSold = sales.length;
+        event.salesLog = JSON.parse(JSON.stringify(sales)); // Deep copy
+        event.endingInventory = JSON.parse(JSON.stringify(this.getIngredients())); // Deep copy
+
+        // Move to history
+        const history = this.getEventHistory();
+        history.push(event);
+        this.saveEventHistory(history);
+
+        // Clear active event
+        localStorage.removeItem(this.storageKey.activeEvent);
+
+        return event;
+    }
+
+    /**
+     * Get event history
+     */
+    getEventHistory() {
+        const data = localStorage.getItem(this.storageKey.eventHistory);
+        return data ? JSON.parse(data) : [];
+    }
+
+    /**
+     * Save event history
+     */
+    saveEventHistory(history) {
+        localStorage.setItem(this.storageKey.eventHistory, JSON.stringify(history));
+    }
+
+    /**
+     * Get user settings
+     */
+    getSettings() {
+        const data = localStorage.getItem(this.storageKey.settings);
+        return data ? JSON.parse(data) : { 
+            theme: 'auto',
+            demoMode: false 
+        };
+    }
+
+    /**
+     * Save user settings
+     */
+    saveSettings(settings) {
+        localStorage.setItem(this.storageKey.settings, JSON.stringify(settings));
     }
 
     /**
@@ -244,6 +341,7 @@ class DataManager {
         const sales = this.getSales();
         sale.id = this.generateId();
         sale.timestamp = new Date().toISOString();
+        sale.quantity = sale.quantity || 1; // Support batch sales
         sales.push(sale);
         this.saveSales(sales);
         this.saveLastSale(sale);
@@ -307,9 +405,10 @@ class BusinessLogic {
 
     /**
      * Check if a product can be sold (all ingredients available)
-     * FIXED: Check totalQuantity instead of currentStock
+     * @param {string} productId - Product to check
+     * @param {number} quantity - Number of items to sell (default 1)
      */
-    canSellProduct(productId) {
+    canSellProduct(productId, quantity = 1) {
         const products = this.dataManager.getProducts();
         const product = products.find(p => p.id === productId);
         if (!product || !product.active) return false;
@@ -318,7 +417,8 @@ class BusinessLogic {
         
         for (const recipeItem of product.recipe) {
             const ingredient = ingredients.find(i => i.id === recipeItem.ingredientId);
-            if (!ingredient || ingredient.totalQuantity < recipeItem.quantity) {
+            const requiredQty = recipeItem.quantity * quantity;
+            if (!ingredient || ingredient.totalQuantity < requiredQty) {
                 return false;
             }
         }
@@ -327,14 +427,61 @@ class BusinessLogic {
     }
 
     /**
+     * Check stock levels for a product sale
+     * Returns warning info if stock is low but sale is still possible
+     */
+    checkStockWarnings(productId, quantity = 1) {
+        const products = this.dataManager.getProducts();
+        const product = products.find(p => p.id === productId);
+        if (!product) return null;
+
+        const ingredients = this.dataManager.getIngredients();
+        const warnings = [];
+        
+        product.recipe.forEach(recipeItem => {
+            const ingredient = ingredients.find(i => i.id === recipeItem.ingredientId);
+            const requiredQty = recipeItem.quantity * quantity;
+            const remaining = ingredient.totalQuantity - requiredQty;
+            
+            if (ingredient.lowStockThreshold && remaining <= ingredient.lowStockThreshold) {
+                const estimatedCupsLeft = Math.floor(remaining / recipeItem.quantity);
+                warnings.push({
+                    ingredientName: ingredient.name,
+                    remaining: remaining,
+                    unit: ingredient.unit,
+                    estimatedCupsLeft: estimatedCupsLeft
+                });
+            }
+        });
+        
+        return warnings.length > 0 ? warnings : null;
+    }
+
+    /**
      * Process a sale - SIMPLIFIED FOR CORRECT ACCOUNTING
      * 
      * Sales track: Revenue
      * Inventory tracks: Quantities
      * Accounting tracks: Fixed costs (separate)
+     * 
+     * CRITICAL: Sales only allowed during active event
+     * 
+     * @param {string} productId - Product to sell
+     * @param {number} quantity - Number of items (default 1)
+     * @param {boolean} isDemoMode - If true, don't affect real inventory
      */
-    processSale(productId) {
-        if (!this.canSellProduct(productId)) {
+    processSale(productId, quantity = 1, isDemoMode = false) {
+        // CRITICAL CHECK: Require active event for sales
+        const activeEvent = this.dataManager.getActiveEvent();
+        if (!isDemoMode && (!activeEvent || activeEvent.status !== 'active')) {
+            throw new Error('No active event. Please start an event before making sales.');
+        }
+
+        if (quantity < 1) {
+            throw new Error('Quantity must be at least 1');
+        }
+
+        if (!this.canSellProduct(productId, quantity)) {
             throw new Error('Product cannot be sold - insufficient ingredients');
         }
 
@@ -343,18 +490,24 @@ class BusinessLogic {
         const ingredients = this.dataManager.getIngredients();
 
         // Deduct stock (quantity tracking ONLY - no cost tracking)
-        product.recipe.forEach(recipeItem => {
-            const ingredient = ingredients.find(i => i.id === recipeItem.ingredientId);
-            ingredient.totalQuantity -= recipeItem.quantity;
-        });
-        this.dataManager.saveIngredients(ingredients);
+        // Skip if demo mode
+        if (!isDemoMode) {
+            product.recipe.forEach(recipeItem => {
+                const ingredient = ingredients.find(i => i.id === recipeItem.ingredientId);
+                ingredient.totalQuantity -= (recipeItem.quantity * quantity);
+            });
+            this.dataManager.saveIngredients(ingredients);
+        }
 
         // Record sale (REVENUE ONLY - no per-unit costs)
         const sale = {
             productId: product.id,
             productName: product.name,
-            sellingPrice: product.sellingPrice,
-            paymentType: 'cash'
+            sellingPrice: product.sellingPrice * quantity, // Total revenue for this sale
+            quantity: quantity,
+            paymentType: 'cash',
+            isDemoMode: isDemoMode,
+            eventId: activeEvent ? activeEvent.id : null // Link to event
         };
 
         return this.dataManager.recordSale(sale);
@@ -380,7 +533,8 @@ class BusinessLogic {
             product.recipe.forEach(recipeItem => {
                 const ingredient = ingredients.find(i => i.id === recipeItem.ingredientId);
                 if (ingredient) {
-                    ingredient.totalQuantity += recipeItem.quantity;
+                    const qtyToRestore = (lastSale.quantity || 1) * recipeItem.quantity;
+                    ingredient.totalQuantity += qtyToRestore;
                 }
             });
             this.dataManager.saveIngredients(ingredients);
@@ -405,18 +559,26 @@ class BusinessLogic {
      */
     getSalesSummary() {
         const sales = this.dataManager.getSales();
-        const eventCosts = this.dataManager.getEventCosts();
+        const activeEvent = this.dataManager.getActiveEvent();
         
-        const totalRevenue = sales.reduce((sum, sale) => sum + sale.sellingPrice, 0);
-        const fixedCost = eventCosts.totalFixedCost || 0;
+        // Calculate total revenue (handles batch sales with quantity)
+        const totalRevenue = sales.reduce((sum, sale) => {
+            return sum + sale.sellingPrice;
+        }, 0);
+        
+        // Get fixed cost from active event
+        const fixedCost = activeEvent ? activeEvent.fixedCost : 0;
         const netProfit = totalRevenue - fixedCost;
-        const itemsSold = sales.length;
+        
+        // Count total items sold (sum of quantities)
+        const itemsSold = sales.reduce((sum, sale) => sum + (sale.quantity || 1), 0);
 
         return {
             totalRevenue,
             fixedCost,
             netProfit,
-            itemsSold
+            itemsSold,
+            hasActiveEvent: activeEvent && activeEvent.status === 'active'
         };
     }
 
@@ -566,10 +728,10 @@ class UIManager {
             this.saveProduct();
         });
 
-        // Event costs form
-        document.getElementById('event-costs-form').addEventListener('submit', (e) => {
+        // Start event form
+        document.getElementById('start-event-form').addEventListener('submit', (e) => {
             e.preventDefault();
-            this.saveEventCosts();
+            this.startEvent();
         });
     }
 
@@ -577,6 +739,25 @@ class UIManager {
      * Setup buttons
      */
     setupButtons() {
+        // Event action button (dynamically changes between Start/End)
+        document.getElementById('event-action-btn').addEventListener('click', () => {
+            const activeEvent = this.dataManager.getActiveEvent();
+            if (activeEvent && activeEvent.status === 'active') {
+                this.openEndEventModal();
+            } else {
+                this.openStartEventModal();
+            }
+        });
+
+        // End event confirm
+        document.getElementById('end-event-confirm').addEventListener('click', () => {
+            this.endEvent();
+        });
+
+        document.getElementById('end-event-cancel').addEventListener('click', () => {
+            this.closeModal('end-event-modal');
+        });
+
         // Add ingredient button
         document.getElementById('add-ingredient-btn').addEventListener('click', () => {
             this.openIngredientModal();
@@ -602,11 +783,6 @@ class UIManager {
             this.bulkRestockLowItems();
         });
 
-        // Set event costs button
-        document.getElementById('set-event-costs-btn').addEventListener('click', () => {
-            this.openEventCostsModal();
-        });
-
         // Export data button
         document.getElementById('export-data-btn').addEventListener('click', () => {
             this.exportData();
@@ -622,10 +798,131 @@ class UIManager {
      * Render all screens
      */
     renderAll() {
+        this.updateEventBanner();
         this.renderCashier();
         this.renderProducts();
         this.renderInventory();
         this.renderReports();
+    }
+
+    // ========================================
+    // EVENT MANAGEMENT
+    // ========================================
+
+    /**
+     * Update event status banner
+     */
+    updateEventBanner() {
+        const activeEvent = this.dataManager.getActiveEvent();
+        const banner = document.getElementById('event-banner');
+        const statusText = document.getElementById('event-text');
+        const actionBtn = document.getElementById('event-action-btn');
+
+        if (!banner) return;
+
+        banner.style.display = 'flex';
+
+        if (activeEvent && activeEvent.status === 'active') {
+            banner.classList.add('active');
+            statusText.textContent = `Active Event: ${activeEvent.name}`;
+            actionBtn.textContent = 'End Event';
+            actionBtn.classList.remove('btn-primary');
+            actionBtn.classList.add('btn-danger');
+        } else {
+            banner.classList.remove('active');
+            statusText.textContent = 'No Active Event';
+            actionBtn.textContent = 'Start Event';
+            actionBtn.classList.remove('btn-danger');
+            actionBtn.classList.add('btn-primary');
+        }
+    }
+
+    /**
+     * Open start event modal
+     */
+    openStartEventModal() {
+        document.getElementById('event-name').value = '';
+        document.getElementById('event-fixed-cost').value = '';
+        this.openModal('start-event-modal');
+    }
+
+    /**
+     * Start event
+     */
+    startEvent() {
+        const name = document.getElementById('event-name').value;
+        const fixedCost = parseFloat(document.getElementById('event-fixed-cost').value);
+
+        if (!name || name.trim() === '') {
+            this.showToast('Please enter an event name', 'error');
+            return;
+        }
+
+        if (isNaN(fixedCost) || fixedCost < 0) {
+            this.showToast('Please enter a valid fixed cost', 'error');
+            return;
+        }
+
+        this.dataManager.startEvent({ name, fixedCost });
+        this.showToast(`Event "${name}" started!`, 'success');
+        this.closeModal('start-event-modal');
+        this.renderAll();
+    }
+
+    /**
+     * Open end event modal
+     */
+    openEndEventModal() {
+        const activeEvent = this.dataManager.getActiveEvent();
+        if (!activeEvent) return;
+
+        const summary = this.businessLogic.getSalesSummary();
+        const summaryDiv = document.getElementById('end-event-summary');
+
+        const profitClass = summary.netProfit >= 0 ? 'success' : 'danger';
+        const profitLabel = summary.netProfit >= 0 ? 'Profit' : 'Loss';
+
+        summaryDiv.innerHTML = `
+            <h3 style="margin-bottom: var(--spacing-md);">${activeEvent.name}</h3>
+            <div style="background: var(--background); padding: var(--spacing-md); border-radius: var(--border-radius); margin-bottom: var(--spacing-md);">
+                <div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0;">
+                    <span>Total Revenue:</span>
+                    <strong>${this.formatCurrency(summary.totalRevenue)}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0; border-bottom: 2px solid var(--border);">
+                    <span>Fixed Cost:</span>
+                    <strong>${this.formatCurrency(summary.fixedCost)}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: var(--spacing-sm) 0; font-size: var(--font-size-lg);">
+                    <span>Net ${profitLabel}:</span>
+                    <strong style="color: var(--${profitClass});">${this.formatCurrency(Math.abs(summary.netProfit))}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0;">
+                    <span>Items Sold:</span>
+                    <strong>${summary.itemsSold}</strong>
+                </div>
+            </div>
+        `;
+
+        this.openModal('end-event-modal');
+    }
+
+    /**
+     * End event
+     */
+    endEvent() {
+        const event = this.dataManager.endEvent();
+
+        if (event) {
+            const profitLabel = event.profit >= 0 ? 'Profit' : 'Loss';
+            this.showToast(
+                `Event ended: ${event.name} - ${profitLabel}: ${this.formatCurrency(Math.abs(event.profit))}`,
+                event.profit >= 0 ? 'success' : 'warning'
+            );
+        }
+
+        this.closeModal('end-event-modal');
+        this.renderAll();
     }
 
     // ========================================
@@ -1442,7 +1739,6 @@ class UIManager {
 // ========================================
 // INITIALIZATION
 // ========================================
-
 // Initialize the app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     const dataManager = new DataManager();

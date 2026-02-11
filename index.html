@@ -25,10 +25,28 @@
             <span class="nav-icon">📊</span>
             <span class="nav-label">Reports</span>
         </button>
+        <button class="nav-btn" data-screen="settings">
+            <span class="nav-icon">⚙️</span>
+            <span class="nav-label">Settings</span>
+        </button>
     </nav>
+
+    <!-- Demo Mode Indicator -->
+    <div class="demo-indicator" id="demo-indicator" style="display: none;">
+        🧪 DEMO MODE - Sales won't affect real inventory
+    </div>
 
     <!-- Screen: Cashier -->
     <div class="screen active" id="cashier-screen">
+        <!-- Event Status Banner -->
+        <div class="event-banner" id="event-banner" style="display: none;">
+            <div class="event-banner-content">
+                <span class="event-status-dot"></span>
+                <span class="event-text" id="event-text">No Active Event</span>
+            </div>
+            <button class="event-action-btn" id="event-action-btn">Start Event</button>
+        </div>
+
         <div class="screen-header">
             <h1>Cashier</h1>
             <div class="header-stats">
@@ -100,7 +118,6 @@
         <div class="screen-header">
             <h1>Reports</h1>
             <div class="report-actions">
-                <button class="btn-secondary" id="set-event-costs-btn">💰 Set Event Costs</button>
                 <button class="btn-secondary" id="export-data-btn">💾 Backup Data</button>
                 <button class="btn-danger" id="reset-event-btn">🔄 Reset Event</button>
             </div>
@@ -142,6 +159,56 @@
                 <h2>Recent Transactions</h2>
                 <div class="transaction-list" id="transaction-list">
                     <p class="empty-hint">No transactions yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen: Settings -->
+    <div class="screen" id="settings-screen">
+        <div class="screen-header">
+            <h1>Settings</h1>
+        </div>
+
+        <div class="settings-container">
+            <div class="settings-section">
+                <h2>Appearance</h2>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <span class="setting-label">Theme</span>
+                        <span class="setting-description">Choose your preferred color scheme</span>
+                    </div>
+                    <select id="theme-select" class="setting-select">
+                        <option value="auto">Auto (System)</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h2>Testing & Demo</h2>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <span class="setting-label">Demo Mode</span>
+                        <span class="setting-description">Test sales without affecting real inventory</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="demo-mode-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h2>About</h2>
+                <div class="about-info">
+                    <p><strong>Booth POS</strong></p>
+                    <p>Version 1.2 - Offline Cashier System</p>
+                    <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.875rem;">
+                        Designed for food & beverage booths, pop-ups, and events.
+                        All data stored locally on your device.
+                    </p>
                 </div>
             </div>
         </div>
@@ -277,6 +344,106 @@
                     <button type="submit" class="btn-primary">Save</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal: Start Event -->
+    <div class="modal" id="start-event-modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Start New Event</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="start-event-form">
+                <!-- FIXED: Added missing event-name field -->
+                <div class="form-group">
+                    <label>Event Name *</label>
+                    <input type="text" id="event-name" required placeholder="e.g., Weekend Market, School Fair">
+                    <small style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.5rem; display: block;">
+                        Give your event a memorable name
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label>Fixed Event Cost (₱) *</label>
+                    <input type="number" id="event-fixed-cost" step="0.01" min="0" required placeholder="1500.00">
+                    <small style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.5rem; display: block;">
+                        Total upfront cost for ALL ingredients
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label>Planned Cups (Optional)</label>
+                    <input type="number" id="event-planned-cups" step="1" min="0" placeholder="50">
+                    <small style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.5rem; display: block;">
+                        For break-even tracking only (doesn't affect accounting)
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label>Notes (Optional)</label>
+                    <textarea id="event-notes" rows="2" placeholder="Event location, special notes, etc." style="width: 100%; padding: var(--spacing-sm); border: 2px solid var(--border); border-radius: var(--border-radius); font-family: inherit; font-size: var(--font-size-md);"></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary modal-cancel">Cancel</button>
+                    <button type="submit" class="btn-primary">Start Event</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: End Event -->
+    <div class="modal" id="end-event-modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>End Event</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to end the current event?</p>
+                <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.875rem;">
+                    This will lock the sales and show final results. You can start a new event afterwards.
+                </p>
+                <div id="end-event-summary" style="margin-top: 1rem; padding: var(--spacing-md); background: var(--background); border-radius: var(--border-radius);"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" id="end-event-cancel">Cancel</button>
+                <button class="btn-danger" id="end-event-confirm">End Event</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Batch Sale -->
+    <div class="modal" id="batch-sale-modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2 id="batch-sale-title">Batch Sale</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="batch-sale-product-info">
+                    <div style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;" id="batch-product-name"></div>
+                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--primary);" id="batch-product-price"></div>
+                </div>
+
+                <div class="form-group" style="margin-top: var(--spacing-lg);">
+                    <label>Quantity *</label>
+                    <input type="number" id="batch-quantity" min="1" value="1" step="1" required 
+                           style="width: 100%; padding: var(--spacing-md); font-size: 1.25rem; text-align: center; border: 2px solid var(--border); border-radius: var(--border-radius);">
+                </div>
+
+                <div id="batch-total" style="margin-top: var(--spacing-md); padding: var(--spacing-md); background: var(--background); border-radius: var(--border-radius); text-align: center;">
+                    <div style="color: var(--text-secondary); font-size: 0.875rem;">Total</div>
+                    <div style="font-size: 2rem; font-weight: 800; color: var(--primary);" id="batch-total-amount">₱0.00</div>
+                </div>
+
+                <div id="batch-warnings" style="margin-top: var(--spacing-md);"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary modal-cancel">Cancel</button>
+                <button class="btn-primary" id="batch-sale-confirm">Confirm Sale</button>
+            </div>
         </div>
     </div>
 

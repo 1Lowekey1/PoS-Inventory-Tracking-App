@@ -53,6 +53,104 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* Dark Mode */
+body.dark-mode {
+    --background: #0f172a;
+    --surface: #1e293b;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --border: #334155;
+    --shadow: rgba(0, 0, 0, 0.3);
+}
+
+/* ========================================
+   EVENT BANNER
+   ======================================== */
+.event-banner {
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    background: var(--surface);
+    border-bottom: 2px solid var(--border);
+    padding: var(--spacing-sm) var(--spacing-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px var(--shadow);
+}
+
+.event-banner.active {
+    background: #dcfce7;
+    border-color: var(--success);
+}
+
+.event-banner-content {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.event-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+}
+
+.event-banner.active .event-status-dot {
+    background: var(--success);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.event-text {
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+}
+
+.event-action-btn {
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--border-radius);
+    border: none;
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+}
+
+.event-banner.active .event-action-btn {
+    background: var(--danger);
+}
+
+/* ========================================
+   DEMO MODE INDICATOR
+   ======================================== */
+.demo-indicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #fef3c7;
+    color: #92400e;
+    padding: var(--spacing-xs);
+    text-align: center;
+    font-weight: 700;
+    font-size: var(--font-size-sm);
+    z-index: 95;
+    border-bottom: 2px solid #f59e0b;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-100%); }
+    to { transform: translateY(0); }
+}
+
 /* ========================================
    NAVIGATION BAR
    ======================================== */
@@ -976,4 +1074,141 @@ form {
     .screen {
         padding: 0;
     }
+}
+
+/* ========================================
+   SETTINGS SCREEN
+   ======================================== */
+.settings-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.settings-section {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+}
+
+.settings-section h2 {
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md) 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.setting-label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.setting-description {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.setting-select {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 2px solid var(--border);
+    border-radius: var(--border-radius);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: var(--font-size-md);
+    cursor: pointer;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 52px;
+    height: 28px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--border);
+    transition: 0.3s;
+    border-radius: 28px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background-color: var(--primary);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(24px);
+}
+
+.about-info {
+    padding: var(--spacing-sm) 0;
+}
+
+.about-info p {
+    margin-bottom: var(--spacing-xs);
+}
+
+/* ========================================
+   BATCH SALE MODAL
+   ======================================== */
+.batch-sale-product-info {
+    text-align: center;
+    padding: var(--spacing-md);
+    background: var(--background);
+    border-radius: var(--border-radius);
+}
+
+#batch-warnings {
+    padding: var(--spacing-sm);
+    background: #fef3c7;
+    border-radius: var(--border-radius);
+    border-left: 4px solid var(--warning);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+}
+
+#batch-warnings:empty {
+    display: none;
 }
