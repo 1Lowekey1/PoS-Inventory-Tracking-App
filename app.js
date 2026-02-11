@@ -7,25 +7,28 @@
  * All data stored in localStorage.
  * No hard-coded menu items or ingredients.
  * 
- * CRITICAL COSTING ARCHITECTURE:
+ * CRITICAL ACCOUNTING ARCHITECTURE:
  * 
- * Ingredients use BATCH PURCHASE MODEL:
- * - Store: totalCost (₱780) and totalQuantity (1000ml)
- * - Compute: unit_cost = totalCost / totalQuantity = ₱0.78/ml
- * - NEVER store cost_per_unit directly
+ * FIXED EVENT COSTS (Sunk Costs):
+ * - Ingredients purchased upfront for the event
+ * - Paid ONCE regardless of cups sold
+ * - Example: ₱1,500 for all ingredients
+ * - NOT divided per cup in profit calculation
  * 
- * Products contain QUANTITY-ONLY recipes:
- * - Store: ingredientId + quantity (20ml)
- * - Compute: cost = unit_cost × quantity = ₱15.60
- * - NEVER store peso values in recipes
+ * PROFIT FORMULA:
+ * Profit = TotalRevenue - FixedEventCost
  * 
- * This architecture prevents batch costs (₱780) from being 
- * incorrectly assigned to individual drinks.
+ * NEVER:
+ * Profit = (Price - CostPerCup) × CupsSold
+ * 
+ * Inventory tracks QUANTITIES for operational purposes only.
+ * Inventory depletion does NOT affect accounting costs.
  * 
  * Data Models:
- * - Ingredients: id, name, unit, totalCost, totalQuantity, lowStockThreshold
+ * - EventCosts: totalFixedCost (one-time upfront purchase)
+ * - Ingredients: id, name, unit, totalQuantity, lowStockThreshold (NO COST DATA)
  * - Products: id, name, sellingPrice, recipe[], active
- * - Sales: timestamp, productId, productName, sellingPrice, ingredientSnapshot, paymentType
+ * - Sales: timestamp, productId, productName, sellingPrice, paymentType
  */
 
 // ========================================
@@ -39,8 +42,24 @@ class DataManager {
             products: 'booth_products',
             sales: 'booth_sales',
             lastSale: 'booth_last_sale',
-            stockSnapshot: 'booth_stock_snapshot' // NEW: Track stock changes
+            stockSnapshot: 'booth_stock_snapshot',
+            eventCosts: 'booth_event_costs' // NEW: Fixed upfront event costs
         };
+    }
+
+    /**
+     * Get event costs (fixed sunk costs)
+     */
+    getEventCosts() {
+        const data = localStorage.getItem(this.storageKey.eventCosts);
+        return data ? JSON.parse(data) : { totalFixedCost: 0, notes: '' };
+    }
+
+    /**
+     * Save event costs
+     */
+    saveEventCosts(costs) {
+        localStorage.setItem(this.storageKey.eventCosts, JSON.stringify(costs));
     }
 
     /**
@@ -308,7 +327,11 @@ class BusinessLogic {
     }
 
     /**
-     * Process a sale
+     * Process a sale - SIMPLIFIED FOR CORRECT ACCOUNTING
+     * 
+     * Sales track: Revenue
+     * Inventory tracks: Quantities
+     * Accounting tracks: Fixed costs (separate)
      */
     processSale(productId) {
         if (!this.canSellProduct(productId)) {
@@ -319,35 +342,18 @@ class BusinessLogic {
         const product = products.find(p => p.id === productId);
         const ingredients = this.dataManager.getIngredients();
 
-        // Create ingredient snapshot for audit trail
-        // CRITICAL FIX: Use dynamically computed unit cost
-        const ingredientSnapshot = product.recipe.map(recipeItem => {
-            const ingredient = ingredients.find(i => i.id === recipeItem.ingredientId);
-            const unitCost = this.getUnitCost(ingredient);
-            
-            return {
-                ingredientId: recipeItem.ingredientId,
-                ingredientName: ingredient.name,
-                quantity: recipeItem.quantity,
-                unit: ingredient.unit,
-                unitCost: unitCost, // Store computed unit cost, not batch cost
-                totalCost: recipeItem.quantity * unitCost // Correct per-drink cost
-            };
-        });
-
-        // Deduct stock (quantity only - never deduct cost directly)
+        // Deduct stock (quantity tracking ONLY - no cost tracking)
         product.recipe.forEach(recipeItem => {
             const ingredient = ingredients.find(i => i.id === recipeItem.ingredientId);
             ingredient.totalQuantity -= recipeItem.quantity;
         });
         this.dataManager.saveIngredients(ingredients);
 
-        // Record sale
+        // Record sale (REVENUE ONLY - no per-unit costs)
         const sale = {
             productId: product.id,
             productName: product.name,
             sellingPrice: product.sellingPrice,
-            ingredientSnapshot: ingredientSnapshot,
             paymentType: 'cash'
         };
 
@@ -356,7 +362,7 @@ class BusinessLogic {
 
     /**
      * Undo the last sale
-     * FIXED: Restore totalQuantity (not currentStock)
+     * Restore quantities from the product recipe
      */
     undoLastSale() {
         const lastSale = this.dataManager.getLastSale();
@@ -364,15 +370,21 @@ class BusinessLogic {
             throw new Error('No sale to undo');
         }
 
-        // Restore ingredient stocks
-        const ingredients = this.dataManager.getIngredients();
-        lastSale.ingredientSnapshot.forEach(snapshot => {
-            const ingredient = ingredients.find(i => i.id === snapshot.ingredientId);
-            if (ingredient) {
-                ingredient.totalQuantity += snapshot.quantity;
-            }
-        });
-        this.dataManager.saveIngredients(ingredients);
+        // Get the product to find recipe
+        const products = this.dataManager.getProducts();
+        const product = products.find(p => p.id === lastSale.productId);
+        
+        if (product) {
+            // Restore ingredient quantities
+            const ingredients = this.dataManager.getIngredients();
+            product.recipe.forEach(recipeItem => {
+                const ingredient = ingredients.find(i => i.id === recipeItem.ingredientId);
+                if (ingredient) {
+                    ingredient.totalQuantity += recipeItem.quantity;
+                }
+            });
+            this.dataManager.saveIngredients(ingredients);
+        }
 
         // Remove sale from history
         let sales = this.dataManager.getSales();
@@ -386,23 +398,24 @@ class BusinessLogic {
     }
 
     /**
-     * Get today's sales summary
+     * Get today's sales summary - CORRECT ACCOUNTING
+     * 
+     * Profit = Total Revenue - Fixed Event Cost
+     * NO per-unit cost calculation
      */
     getSalesSummary() {
         const sales = this.dataManager.getSales();
+        const eventCosts = this.dataManager.getEventCosts();
         
         const totalRevenue = sales.reduce((sum, sale) => sum + sale.sellingPrice, 0);
-        const totalCost = sales.reduce((sum, sale) => {
-            const saleCost = sale.ingredientSnapshot.reduce((s, item) => s + item.totalCost, 0);
-            return sum + saleCost;
-        }, 0);
-        const totalProfit = totalRevenue - totalCost;
+        const fixedCost = eventCosts.totalFixedCost || 0;
+        const netProfit = totalRevenue - fixedCost;
         const itemsSold = sales.length;
 
         return {
             totalRevenue,
-            totalCost,
-            totalProfit,
+            fixedCost,
+            netProfit,
             itemsSold
         };
     }
@@ -431,56 +444,13 @@ class BusinessLogic {
 
     /**
      * Get low stock ingredients
-     * FIXED: Check totalQuantity instead of currentStock
+     * Inventory tracking is PURELY operational - NOT for costing
      */
     getLowStockIngredients() {
         const ingredients = this.dataManager.getIngredients();
         return ingredients.filter(i => 
             i.lowStockThreshold && i.totalQuantity <= i.lowStockThreshold
         );
-    }
-
-    /**
-     * CRITICAL FIX: Compute unit cost dynamically from batch data
-     * This prevents the ₱780 batch cost from being assigned to a single drink
-     * 
-     * Formula: unit_cost = total_cost / total_quantity
-     * Example: ₱780 / 1000ml = ₱0.78 per ml
-     */
-    getUnitCost(ingredient) {
-        if (!ingredient.totalQuantity || ingredient.totalQuantity === 0) {
-            return 0;
-        }
-        return ingredient.totalCost / ingredient.totalQuantity;
-    }
-
-    /**
-     * Calculate product cost - FIXED VERSION
-     * 
-     * STEP 1: Get unit cost for each ingredient
-     * STEP 2: Multiply by quantity used in recipe
-     * STEP 3: Sum all ingredient costs
-     * 
-     * This ensures cost scales correctly regardless of batch size
-     */
-    calculateProductCost(recipe) {
-        const ingredients = this.dataManager.getIngredients();
-        let totalCost = 0;
-
-        recipe.forEach(recipeItem => {
-            const ingredient = ingredients.find(i => i.id === recipeItem.ingredientId);
-            if (ingredient) {
-                // CRITICAL: Compute unit cost dynamically
-                const unitCost = this.getUnitCost(ingredient);
-                
-                // Cost for this ingredient = unit_cost × quantity_used
-                const ingredientCost = unitCost * recipeItem.quantity;
-                
-                totalCost += ingredientCost;
-            }
-        });
-
-        return totalCost;
     }
 }
 
@@ -590,30 +560,16 @@ class UIManager {
             this.saveIngredient();
         });
 
-        // Auto-calculate unit cost when batch cost or quantity changes
-        const totalCostInput = document.getElementById('ingredient-total-cost');
-        const totalQuantityInput = document.getElementById('ingredient-total-quantity');
-        const unitCostDisplay = document.getElementById('ingredient-unit-cost-display');
-
-        const updateUnitCost = () => {
-            const totalCost = parseFloat(totalCostInput.value) || 0;
-            const totalQuantity = parseFloat(totalQuantityInput.value) || 0;
-            
-            if (totalQuantity > 0) {
-                const unitCost = totalCost / totalQuantity;
-                unitCostDisplay.value = this.formatCurrency(unitCost);
-            } else {
-                unitCostDisplay.value = '₱0.00';
-            }
-        };
-
-        totalCostInput.addEventListener('input', updateUnitCost);
-        totalQuantityInput.addEventListener('input', updateUnitCost);
-
         // Product form
         document.getElementById('product-form').addEventListener('submit', (e) => {
             e.preventDefault();
             this.saveProduct();
+        });
+
+        // Event costs form
+        document.getElementById('event-costs-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveEventCosts();
         });
     }
 
@@ -644,6 +600,11 @@ class UIManager {
         // Restock low items button
         document.getElementById('restock-low-btn').addEventListener('click', () => {
             this.bulkRestockLowItems();
+        });
+
+        // Set event costs button
+        document.getElementById('set-event-costs-btn').addEventListener('click', () => {
+            this.openEventCostsModal();
         });
 
         // Export data button
@@ -755,7 +716,8 @@ class UIManager {
     // ========================================
 
     /**
-     * Render products screen with COST WARNINGS
+     * Render products screen - NO COST CALCULATIONS
+     * Products only track selling price
      */
     renderProducts() {
         const products = this.dataManager.getProducts();
@@ -770,13 +732,7 @@ class UIManager {
             `;
         } else {
             list.innerHTML = products.map(product => {
-                const cost = this.businessLogic.calculateProductCost(product.recipe);
-                const profit = product.sellingPrice - cost;
-                const margin = product.sellingPrice > 0 ? (profit / product.sellingPrice) * 100 : 0;
                 const canSell = this.businessLogic.canSellProduct(product.id);
-                
-                // PANIC PREVENTION: Check if cost exceeds selling price
-                const hasPricingIssue = cost > product.sellingPrice;
 
                 return `
                     <div class="product-card">
@@ -790,30 +746,12 @@ class UIManager {
                                 ${product.active ? '✓ Active' : '✗ Inactive'}
                             </span>
                             ${!canSell && product.active ? '<span class="card-badge low-stock">Out of Stock</span>' : ''}
-                            ${hasPricingIssue ? '<span class="card-badge" style="background: #fee2e2; color: var(--danger);">⚠ Pricing Issue</span>' : ''}
                         </div>
-
-                        ${hasPricingIssue ? `
-                            <div style="background: #fee2e2; padding: var(--spacing-sm); border-radius: var(--border-radius); margin-bottom: var(--spacing-sm); border-left: 4px solid var(--danger);">
-                                <strong style="color: var(--danger);">⚠ Pricing Mismatch</strong>
-                                <p style="font-size: 0.875rem; color: var(--text-primary); margin-top: 0.25rem;">
-                                    Cost (${this.formatCurrency(cost)}) exceeds selling price. Please review recipe or increase price.
-                                </p>
-                            </div>
-                        ` : ''}
 
                         <div class="card-recipe">
                             <div class="recipe-title">Recipe:</div>
                             <div class="recipe-list">
                                 ${this.renderRecipeList(product.recipe)}
-                            </div>
-                        </div>
-
-                        <div class="card-meta">
-                            <div style="font-size: 0.875rem; color: var(--text-secondary);">
-                                Cost: ${this.formatCurrency(cost)} | 
-                                Profit: ${this.formatCurrency(profit)} 
-                                ${margin >= 0 ? `(${margin.toFixed(0)}%)` : '(LOSS)'}
                             </div>
                         </div>
 
@@ -1026,9 +964,6 @@ class UIManager {
                     : '';
                 const isLowStock = ingredient.lowStockThreshold && ingredient.totalQuantity <= ingredient.lowStockThreshold;
                 
-                // CRITICAL: Compute unit cost dynamically
-                const unitCost = this.businessLogic.getUnitCost(ingredient);
-                
                 // Check for stock changes
                 const change = stockChanges[ingredient.id];
                 let changeIndicator = '';
@@ -1061,14 +996,6 @@ class UIManager {
                             <div class="info-item">
                                 <span class="info-label">Current Stock</span>
                                 <span class="info-value">${ingredient.totalQuantity} ${ingredient.unit}</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Unit Cost (Computed)</span>
-                                <span class="info-value">${this.formatCurrency(unitCost)}/${ingredient.unit}</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Batch Purchase</span>
-                                <span class="info-value">${this.formatCurrency(ingredient.totalCost)}</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Low Stock Alert</span>
@@ -1214,7 +1141,7 @@ class UIManager {
     }
 
     /**
-     * Open ingredient modal with NEW DATA MODEL
+     * Open ingredient modal - QUANTITY ONLY
      */
     openIngredientModal(ingredientId = null) {
         this.editingIngredient = ingredientId;
@@ -1224,7 +1151,6 @@ class UIManager {
         // Reset form
         form.reset();
         document.getElementById('ingredient-id').value = '';
-        document.getElementById('ingredient-unit-cost-display').value = '₱0.00';
 
         if (ingredientId) {
             // Edit mode
@@ -1233,15 +1159,8 @@ class UIManager {
             document.getElementById('ingredient-id').value = ingredient.id;
             document.getElementById('ingredient-name').value = ingredient.name;
             document.getElementById('ingredient-unit').value = ingredient.unit;
-            document.getElementById('ingredient-total-cost').value = ingredient.totalCost;
             document.getElementById('ingredient-total-quantity').value = ingredient.totalQuantity;
             document.getElementById('ingredient-threshold').value = ingredient.lowStockThreshold || '';
-            
-            // Calculate and display unit cost
-            if (ingredient.totalQuantity > 0) {
-                const unitCost = ingredient.totalCost / ingredient.totalQuantity;
-                document.getElementById('ingredient-unit-cost-display').value = this.formatCurrency(unitCost);
-            }
         } else {
             // Add mode
             document.getElementById('ingredient-modal-title').textContent = 'Add Ingredient';
@@ -1251,31 +1170,26 @@ class UIManager {
     }
 
     /**
-     * Save ingredient with NEW DATA MODEL
-     * Stores: totalQuantity and totalCost (batch model)
-     * Never stores: costPerUnit or currentStock
+     * Save ingredient - QUANTITY TRACKING ONLY
+     * No cost data stored in ingredients
      */
     saveIngredient() {
         const id = document.getElementById('ingredient-id').value;
         const name = document.getElementById('ingredient-name').value;
         const unit = document.getElementById('ingredient-unit').value;
-        const totalCost = parseFloat(document.getElementById('ingredient-total-cost').value);
         const totalQuantity = parseFloat(document.getElementById('ingredient-total-quantity').value);
         const lowStockThreshold = parseFloat(document.getElementById('ingredient-threshold').value) || null;
 
-        // Validation: prevent division by zero
-        if (totalQuantity <= 0) {
-            this.showToast('Batch quantity must be greater than zero', 'error');
+        if (totalQuantity < 0) {
+            this.showToast('Quantity cannot be negative', 'error');
             return;
         }
 
         const ingredientData = {
             name,
             unit,
-            totalCost,           // Store batch cost
-            totalQuantity,       // Store batch quantity
+            totalQuantity,       // Quantity only - no cost tracking
             lowStockThreshold
-            // NOTE: Unit cost is NEVER stored - computed dynamically
         };
 
         if (id) {
@@ -1331,18 +1245,31 @@ class UIManager {
     // ========================================
 
     /**
-     * Render reports screen
+     * Render reports screen with CORRECT ACCOUNTING
+     * Profit = Revenue - Fixed Event Cost
      */
     renderReports() {
         const summary = this.businessLogic.getSalesSummary();
         const breakdown = this.businessLogic.getSalesBreakdown();
         const sales = this.dataManager.getSales();
 
-        // Update summary stats
+        // Update summary stats with CORRECT accounting
         document.getElementById('report-revenue').textContent = this.formatCurrency(summary.totalRevenue);
-        document.getElementById('report-cost').textContent = this.formatCurrency(summary.totalCost);
-        document.getElementById('report-profit').textContent = this.formatCurrency(summary.totalProfit);
+        document.getElementById('report-fixed-cost').textContent = this.formatCurrency(summary.fixedCost);
+        document.getElementById('report-profit').textContent = this.formatCurrency(summary.netProfit);
         document.getElementById('report-items').textContent = summary.itemsSold;
+        
+        // Update profit card styling based on profit/loss
+        const profitCard = document.getElementById('profit-card');
+        if (summary.netProfit < 0) {
+            profitCard.classList.remove('success');
+            profitCard.classList.add('loss');
+            profitCard.style.background = '#fee2e2';
+        } else {
+            profitCard.classList.add('success');
+            profitCard.classList.remove('loss');
+            profitCard.style.background = '#dcfce7';
+        }
 
         // Render sales breakdown
         const breakdownContainer = document.getElementById('sales-breakdown');
@@ -1398,6 +1325,35 @@ class UIManager {
         
         URL.revokeObjectURL(url);
         this.showToast('Data exported!', 'success');
+    }
+
+    /**
+     * Open event costs modal
+     */
+    openEventCostsModal() {
+        const costs = this.dataManager.getEventCosts();
+        
+        document.getElementById('fixed-cost').value = costs.totalFixedCost || '';
+        document.getElementById('cost-notes').value = costs.notes || '';
+        
+        this.openModal('event-costs-modal');
+    }
+
+    /**
+     * Save event costs
+     */
+    saveEventCosts() {
+        const totalFixedCost = parseFloat(document.getElementById('fixed-cost').value) || 0;
+        const notes = document.getElementById('cost-notes').value;
+        
+        this.dataManager.saveEventCosts({
+            totalFixedCost,
+            notes
+        });
+        
+        this.showToast('Event costs saved!', 'success');
+        this.closeModal('event-costs-modal');
+        this.renderReports();
     }
 
     /**

@@ -100,6 +100,7 @@
         <div class="screen-header">
             <h1>Reports</h1>
             <div class="report-actions">
+                <button class="btn-secondary" id="set-event-costs-btn">💰 Set Event Costs</button>
                 <button class="btn-secondary" id="export-data-btn">💾 Backup Data</button>
                 <button class="btn-danger" id="reset-event-btn">🔄 Reset Event</button>
             </div>
@@ -107,19 +108,21 @@
 
         <div class="report-container">
             <div class="report-section">
-                <h2>Today's Summary</h2>
+                <h2>Financial Summary</h2>
                 <div class="report-stats">
                     <div class="report-stat-card">
                         <span class="report-label">Total Revenue</span>
                         <span class="report-value" id="report-revenue">₱0.00</span>
                     </div>
                     <div class="report-stat-card">
-                        <span class="report-label">Estimated Cost</span>
-                        <span class="report-value" id="report-cost">₱0.00</span>
+                        <span class="report-label">Fixed Event Cost</span>
+                        <span class="report-value" id="report-fixed-cost">₱0.00</span>
+                        <small style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">One-time upfront cost</small>
                     </div>
-                    <div class="report-stat-card success">
-                        <span class="report-label">Estimated Profit</span>
+                    <div class="report-stat-card success" id="profit-card">
+                        <span class="report-label">Net Profit/Loss</span>
                         <span class="report-value" id="report-profit">₱0.00</span>
+                        <small style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Revenue - Fixed Cost</small>
                     </div>
                     <div class="report-stat-card">
                         <span class="report-label">Items Sold</span>
@@ -170,23 +173,9 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Batch Purchase Cost (₱) *</label>
-                    <input type="number" id="ingredient-total-cost" step="0.01" min="0" required placeholder="e.g., 780.00">
-                    <small style="color: var(--text-secondary); font-size: 0.75rem;">Total cost you paid for this batch</small>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Batch Quantity *</label>
-                        <input type="number" id="ingredient-total-quantity" step="0.01" min="0" required placeholder="e.g., 1000">
-                        <small style="color: var(--text-secondary); font-size: 0.75rem;">Total amount purchased</small>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Unit Cost (Auto)</label>
-                        <input type="text" id="ingredient-unit-cost-display" disabled placeholder="₱0.00" style="background: var(--background);">
-                        <small style="color: var(--text-secondary); font-size: 0.75rem;">Computed automatically</small>
-                    </div>
+                    <label>Starting Quantity *</label>
+                    <input type="number" id="ingredient-total-quantity" step="0.01" min="0" required placeholder="e.g., 1000">
+                    <small style="color: var(--text-secondary); font-size: 0.75rem;">How much you have for the event</small>
                 </div>
 
                 <div class="form-group">
@@ -259,6 +248,35 @@
                 <button class="btn-secondary" id="confirm-cancel">Cancel</button>
                 <button class="btn-danger" id="confirm-ok">Confirm</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal: Event Costs -->
+    <div class="modal" id="event-costs-modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Set Event Costs</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="event-costs-form">
+                <div class="form-group">
+                    <label>Total Fixed Cost (₱) *</label>
+                    <input type="number" id="fixed-cost" step="0.01" min="0" required placeholder="e.g., 1500.00">
+                    <small style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.5rem; display: block;">
+                        This is the TOTAL you paid upfront for ALL ingredients (coffee, milk, cups, etc.). This is a one-time sunk cost.
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label>Notes (Optional)</label>
+                    <textarea id="cost-notes" rows="3" placeholder="e.g., 500g coffee + 1L milk + 50 cups" style="width: 100%; padding: var(--spacing-sm); border: 2px solid var(--border); border-radius: var(--border-radius); font-family: inherit; font-size: var(--font-size-md);"></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary modal-cancel">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+            </form>
         </div>
     </div>
 

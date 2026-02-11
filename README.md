@@ -533,6 +533,7 @@ Cashier → ↶ Undo Last Sale → Confirm
 
 ---
 
-**Version:** 1.1  
+**Version:** 1.1
+**Patch:** 1.0  
 **Last Updated:** February 2026  
 **Designed for:** Food & beverage booths, pop-ups, events
