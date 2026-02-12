@@ -60,6 +60,9 @@
                 </div>
             </div>
         </div>
+
+        <!-- Planned Output Progress (shown only when active event has planned output) -->
+        <div id="planned-output-progress" style="display: none;"></div>
         
         <div class="product-grid" id="product-grid">
             <!-- Product buttons will be dynamically generated -->
@@ -179,10 +182,17 @@
                         <span class="setting-description">Choose your preferred color scheme</span>
                     </div>
                     <select id="theme-select" class="setting-select">
-                        <option value="auto">Auto (System)</option>
-                        <option value="light">Light</option>
-                        <option value="dark">Dark</option>
+                        <option value="auto">🌗 Auto (System)</option>
+                        <option value="light">☀️ Light</option>
+                        <option value="dark">🌙 Dark</option>
                     </select>
+                </div>
+                
+                <div style="margin-top: var(--spacing-md); padding: var(--spacing-md); background: var(--surface); border-radius: var(--border-radius); border: 2px solid var(--border);">
+                    <p style="font-size: var(--font-size-sm); color: var(--text-secondary);">
+                        <strong>Auto:</strong> Matches your device's system theme preference.<br>
+                        <strong>Light/Dark:</strong> Always use that theme regardless of system settings.
+                    </p>
                 </div>
             </div>
 
@@ -198,13 +208,22 @@
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
+                
+                <div style="margin-top: var(--spacing-md); padding: var(--spacing-md); background: #fef3c7; border-radius: var(--border-radius); border-left: 4px solid var(--warning);">
+                    <p style="font-size: var(--font-size-sm); margin-bottom: var(--spacing-sm);">
+                        <strong>Demo Mode:</strong> Sales are tracked for testing but inventory is NOT affected. Perfect for training or testing pricing.
+                    </p>
+                    <button class="btn-secondary" id="clear-demo-sales-btn" style="width: 100%;">
+                        Clear Demo Sales
+                    </button>
+                </div>
             </div>
 
             <div class="settings-section">
                 <h2>About</h2>
                 <div class="about-info">
                     <p><strong>Booth POS</strong></p>
-                    <p>Version 1.2 - Offline Cashier System</p>
+                    <p>Version 2.0 - Offline Cashier System</p>
                     <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.875rem;">
                         Designed for food & beverage booths, pop-ups, and events.
                         All data stored locally on your device.
@@ -373,12 +392,15 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Planned Cups (Optional)</label>
-                    <input type="number" id="event-planned-cups" step="1" min="0" placeholder="50">
+                    <label>Planned Output (Optional)</label>
+                    <input type="number" id="event-planned-output" step="1" min="0" placeholder="50">
                     <small style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.5rem; display: block;">
-                        For break-even tracking only (doesn't affect accounting)
+                        How many items do you plan to sell? (for break-even estimate only)
                     </small>
                 </div>
+
+                <!-- Break-even calculation display -->
+                <div id="break-even-calc"></div>
 
                 <div class="form-group">
                     <label>Notes (Optional)</label>

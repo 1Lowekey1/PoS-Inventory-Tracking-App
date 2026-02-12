@@ -44,9 +44,11 @@ class DataManager {
             lastSale: 'booth_last_sale',
             stockSnapshot: 'booth_stock_snapshot',
             eventCosts: 'booth_event_costs',
-            activeEvent: 'booth_active_event', // NEW: Current event session
-            eventHistory: 'booth_event_history', // NEW: Past events
-            settings: 'booth_settings' // NEW: User preferences
+            activeEvent: 'booth_active_event',
+            eventHistory: 'booth_event_history',
+            settings: 'booth_settings',
+            demoSales: 'booth_demo_sales', // NEW: Demo mode sales
+            demoLastSale: 'booth_demo_last_sale' // NEW: Demo mode undo
         };
     }
 
@@ -67,6 +69,7 @@ class DataManager {
             name: eventData.name || 'Unnamed Event',
             startTime: new Date().toISOString(),
             fixedCost: eventData.fixedCost,
+            plannedOutput: eventData.plannedOutput || null, // NEW: For break-even tracking
             startingInventory: JSON.parse(JSON.stringify(this.getIngredients())), // Deep copy snapshot
             status: 'active'
         };
@@ -142,6 +145,51 @@ class DataManager {
      */
     saveSettings(settings) {
         localStorage.setItem(this.storageKey.settings, JSON.stringify(settings));
+    }
+
+    /**
+     * Get demo sales (separate from real sales)
+     */
+    getDemoSales() {
+        const data = localStorage.getItem(this.storageKey.demoSales);
+        return data ? JSON.parse(data) : [];
+    }
+
+    /**
+     * Save demo sales
+     */
+    saveDemoSales(sales) {
+        localStorage.setItem(this.storageKey.demoSales, JSON.stringify(sales));
+    }
+
+    /**
+     * Get last demo sale (for undo)
+     */
+    getDemoLastSale() {
+        const data = localStorage.getItem(this.storageKey.demoLastSale);
+        return data ? JSON.parse(data) : null;
+    }
+
+    /**
+     * Save last demo sale
+     */
+    saveDemoLastSale(sale) {
+        localStorage.setItem(this.storageKey.demoLastSale, JSON.stringify(sale));
+    }
+
+    /**
+     * Clear last demo sale
+     */
+    clearDemoLastSale() {
+        localStorage.removeItem(this.storageKey.demoLastSale);
+    }
+
+    /**
+     * Clear all demo sales
+     */
+    clearAllDemoSales() {
+        this.saveDemoSales([]);
+        this.clearDemoLastSale();
     }
 
     /**
@@ -335,16 +383,26 @@ class DataManager {
     }
 
     /**
-     * Record a sale
+     * Record a sale (handles both real and demo mode)
      */
     recordSale(sale) {
-        const sales = this.getSales();
         sale.id = this.generateId();
         sale.timestamp = new Date().toISOString();
-        sale.quantity = sale.quantity || 1; // Support batch sales
-        sales.push(sale);
-        this.saveSales(sales);
-        this.saveLastSale(sale);
+        sale.quantity = sale.quantity || 1;
+        
+        // Route to demo or real sales based on flag
+        if (sale.isDemoMode) {
+            const demoSales = this.getDemoSales();
+            demoSales.push(sale);
+            this.saveDemoSales(demoSales);
+            this.saveDemoLastSale(sale);
+        } else {
+            const sales = this.getSales();
+            sales.push(sale);
+            this.saveSales(sales);
+            this.saveLastSale(sale);
+        }
+        
         return sale;
     }
 
@@ -464,14 +522,18 @@ class BusinessLogic {
      * Inventory tracks: Quantities
      * Accounting tracks: Fixed costs (separate)
      * 
-     * CRITICAL: Sales only allowed during active event
+     * CRITICAL: Sales only allowed during active event (unless demo mode)
+     * DEMO MODE: Sales tracked but inventory NOT affected
      * 
      * @param {string} productId - Product to sell
      * @param {number} quantity - Number of items (default 1)
-     * @param {boolean} isDemoMode - If true, don't affect real inventory
      */
-    processSale(productId, quantity = 1, isDemoMode = false) {
-        // CRITICAL CHECK: Require active event for sales
+    processSale(productId, quantity = 1) {
+        // Check settings for demo mode
+        const settings = this.dataManager.getSettings();
+        const isDemoMode = settings.demoMode || false;
+        
+        // CRITICAL CHECK: Require active event for real sales (not demo)
         const activeEvent = this.dataManager.getActiveEvent();
         if (!isDemoMode && (!activeEvent || activeEvent.status !== 'active')) {
             throw new Error('No active event. Please start an event before making sales.');
@@ -489,8 +551,7 @@ class BusinessLogic {
         const product = products.find(p => p.id === productId);
         const ingredients = this.dataManager.getIngredients();
 
-        // Deduct stock (quantity tracking ONLY - no cost tracking)
-        // Skip if demo mode
+        // Deduct stock ONLY if not demo mode
         if (!isDemoMode) {
             product.recipe.forEach(recipeItem => {
                 const ingredient = ingredients.find(i => i.id === recipeItem.ingredientId);
@@ -503,11 +564,11 @@ class BusinessLogic {
         const sale = {
             productId: product.id,
             productName: product.name,
-            sellingPrice: product.sellingPrice * quantity, // Total revenue for this sale
+            sellingPrice: product.sellingPrice * quantity,
             quantity: quantity,
             paymentType: 'cash',
-            isDemoMode: isDemoMode,
-            eventId: activeEvent ? activeEvent.id : null // Link to event
+            eventId: activeEvent ? activeEvent.id : null,
+            isDemoMode: isDemoMode // Flag for separation
         };
 
         return this.dataManager.recordSale(sale);
@@ -516,9 +577,16 @@ class BusinessLogic {
     /**
      * Undo the last sale
      * Restore quantities from the product recipe
+     * FIXED: Handles batch sales with quantity > 1
+     * Handles both real and demo mode undo
      */
     undoLastSale() {
-        const lastSale = this.dataManager.getLastSale();
+        const settings = this.dataManager.getSettings();
+        const isDemoMode = settings.demoMode || false;
+        
+        // Get appropriate last sale based on mode
+        const lastSale = isDemoMode ? this.dataManager.getDemoLastSale() : this.dataManager.getLastSale();
+        
         if (!lastSale) {
             throw new Error('No sale to undo');
         }
@@ -527,26 +595,33 @@ class BusinessLogic {
         const products = this.dataManager.getProducts();
         const product = products.find(p => p.id === lastSale.productId);
         
-        if (product) {
-            // Restore ingredient quantities
+        // Restore inventory ONLY if not demo mode
+        if (product && !isDemoMode) {
+            const saleQuantity = lastSale.quantity || 1;
             const ingredients = this.dataManager.getIngredients();
+            
             product.recipe.forEach(recipeItem => {
                 const ingredient = ingredients.find(i => i.id === recipeItem.ingredientId);
                 if (ingredient) {
-                    const qtyToRestore = (lastSale.quantity || 1) * recipeItem.quantity;
-                    ingredient.totalQuantity += qtyToRestore;
+                    // Restore: ingredient quantity × sale quantity
+                    ingredient.totalQuantity += (recipeItem.quantity * saleQuantity);
                 }
             });
             this.dataManager.saveIngredients(ingredients);
         }
 
         // Remove sale from history
-        let sales = this.dataManager.getSales();
-        sales = sales.filter(s => s.id !== lastSale.id);
-        this.dataManager.saveSales(sales);
-
-        // Clear last sale
-        this.dataManager.clearLastSale();
+        if (isDemoMode) {
+            let demoSales = this.dataManager.getDemoSales();
+            demoSales = demoSales.filter(s => s.id !== lastSale.id);
+            this.dataManager.saveDemoSales(demoSales);
+            this.dataManager.clearDemoLastSale();
+        } else {
+            let sales = this.dataManager.getSales();
+            sales = sales.filter(s => s.id !== lastSale.id);
+            this.dataManager.saveSales(sales);
+            this.dataManager.clearLastSale();
+        }
 
         return lastSale;
     }
@@ -556,9 +631,15 @@ class BusinessLogic {
      * 
      * Profit = Total Revenue - Fixed Event Cost
      * NO per-unit cost calculation
+     * 
+     * Handles both real and demo sales separately
      */
     getSalesSummary() {
-        const sales = this.dataManager.getSales();
+        const settings = this.dataManager.getSettings();
+        const isDemoMode = settings.demoMode || false;
+        
+        // Get appropriate sales based on mode
+        const sales = isDemoMode ? this.dataManager.getDemoSales() : this.dataManager.getSales();
         const activeEvent = this.dataManager.getActiveEvent();
         
         // Calculate total revenue (handles batch sales with quantity)
@@ -578,15 +659,22 @@ class BusinessLogic {
             fixedCost,
             netProfit,
             itemsSold,
-            hasActiveEvent: activeEvent && activeEvent.status === 'active'
+            hasActiveEvent: activeEvent && activeEvent.status === 'active',
+            isDemoMode: isDemoMode
         };
     }
 
     /**
      * Get sales breakdown by product
+     * FIXED: Properly counts batch sales with quantity > 1
+     * Handles both real and demo sales
      */
     getSalesBreakdown() {
-        const sales = this.dataManager.getSales();
+        const settings = this.dataManager.getSettings();
+        const isDemoMode = settings.demoMode || false;
+        
+        // Get appropriate sales based on mode
+        const sales = isDemoMode ? this.dataManager.getDemoSales() : this.dataManager.getSales();
         const breakdown = {};
 
         sales.forEach(sale => {
@@ -597,7 +685,8 @@ class BusinessLogic {
                     revenue: 0
                 };
             }
-            breakdown[sale.productId].count++;
+            // Count actual items sold (sum of quantities)
+            breakdown[sale.productId].count += (sale.quantity || 1);
             breakdown[sale.productId].revenue += sale.sellingPrice;
         });
 
@@ -637,6 +726,8 @@ class UIManager {
         this.setupModals();
         this.setupForms();
         this.setupButtons();
+        this.initTheme();
+        this.initDemoMode();
         this.renderAll();
     }
 
@@ -758,6 +849,59 @@ class UIManager {
             this.closeModal('end-event-modal');
         });
 
+        // Batch sale quantity input - update total on change
+        const batchQtyInput = document.getElementById('batch-quantity');
+        if (batchQtyInput) {
+            batchQtyInput.addEventListener('input', () => {
+                this.updateBatchTotal();
+            });
+        }
+
+        // Batch sale confirm button
+        document.getElementById('batch-sale-confirm').addEventListener('click', () => {
+            this.confirmBatchSale();
+        });
+
+        // Break-even calculation inputs
+        const fixedCostInput = document.getElementById('event-fixed-cost');
+        const plannedOutputInput = document.getElementById('event-planned-output');
+        
+        if (fixedCostInput) {
+            fixedCostInput.addEventListener('input', () => {
+                this.updateBreakEvenCalc();
+            });
+        }
+        
+        if (plannedOutputInput) {
+            plannedOutputInput.addEventListener('input', () => {
+                this.updateBreakEvenCalc();
+            });
+        }
+
+        // Demo mode toggle
+        const demoToggle = document.getElementById('demo-mode-toggle');
+        if (demoToggle) {
+            demoToggle.addEventListener('change', (e) => {
+                this.toggleDemoMode(e.target.checked);
+            });
+        }
+
+        // Clear demo sales button
+        const clearDemoBtn = document.getElementById('clear-demo-sales-btn');
+        if (clearDemoBtn) {
+            clearDemoBtn.addEventListener('click', () => {
+                this.clearDemoSales();
+            });
+        }
+
+        // Theme selector
+        const themeSelect = document.getElementById('theme-select');
+        if (themeSelect) {
+            themeSelect.addEventListener('change', (e) => {
+                this.changeTheme(e.target.value);
+            });
+        }
+
         // Add ingredient button
         document.getElementById('add-ingredient-btn').addEventListener('click', () => {
             this.openIngredientModal();
@@ -843,6 +987,11 @@ class UIManager {
     openStartEventModal() {
         document.getElementById('event-name').value = '';
         document.getElementById('event-fixed-cost').value = '';
+        document.getElementById('event-planned-output').value = '';
+        
+        // Clear break-even display
+        this.updateBreakEvenCalc();
+        
         this.openModal('start-event-modal');
     }
 
@@ -852,6 +1001,7 @@ class UIManager {
     startEvent() {
         const name = document.getElementById('event-name').value;
         const fixedCost = parseFloat(document.getElementById('event-fixed-cost').value);
+        const plannedOutput = parseInt(document.getElementById('event-planned-output').value) || null;
 
         if (!name || name.trim() === '') {
             this.showToast('Please enter an event name', 'error');
@@ -863,10 +1013,45 @@ class UIManager {
             return;
         }
 
-        this.dataManager.startEvent({ name, fixedCost });
+        this.dataManager.startEvent({ name, fixedCost, plannedOutput });
         this.showToast(`Event "${name}" started!`, 'success');
         this.closeModal('start-event-modal');
         this.renderAll();
+    }
+
+    /**
+     * Update break-even calculation in Start Event modal
+     * Shows estimated break-even price based on fixed cost and planned output
+     */
+    updateBreakEvenCalc() {
+        const fixedCost = parseFloat(document.getElementById('event-fixed-cost').value) || 0;
+        const plannedOutput = parseInt(document.getElementById('event-planned-output').value) || 0;
+        const breakEvenDiv = document.getElementById('break-even-calc');
+        
+        if (!breakEvenDiv) return;
+        
+        if (fixedCost > 0 && plannedOutput > 0) {
+            const breakEvenPrice = fixedCost / plannedOutput;
+            
+            breakEvenDiv.innerHTML = `
+                <div style="margin-top: var(--spacing-md); padding: var(--spacing-md); background: var(--surface); border-left: 3px solid var(--primary); border-radius: var(--border-radius);">
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: var(--spacing-xs);">
+                        💡 Break-Even Estimate
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: var(--font-size-sm);">
+                        To cover ₱${fixedCost.toFixed(2)} with ${plannedOutput} items, you need to average:
+                    </div>
+                    <div style="font-size: var(--font-size-xl); font-weight: 700; color: var(--primary); margin-top: var(--spacing-xs);">
+                        ${this.formatCurrency(breakEvenPrice)} per item
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: var(--font-size-xs); margin-top: var(--spacing-xs); font-style: italic;">
+                        This is just a reference - doesn't affect accounting
+                    </div>
+                </div>
+            `;
+        } else {
+            breakEvenDiv.innerHTML = '';
+        }
     }
 
     /**
@@ -882,8 +1067,32 @@ class UIManager {
         const profitClass = summary.netProfit >= 0 ? 'success' : 'danger';
         const profitLabel = summary.netProfit >= 0 ? 'Profit' : 'Loss';
 
+        // Build planned output section if it exists
+        let plannedOutputSection = '';
+        if (activeEvent.plannedOutput) {
+            const percentage = Math.min((summary.itemsSold / activeEvent.plannedOutput) * 100, 100);
+            const achieved = summary.itemsSold >= activeEvent.plannedOutput;
+            
+            plannedOutputSection = `
+                <div style="background: var(--surface); padding: var(--spacing-md); border-radius: var(--border-radius); margin-bottom: var(--spacing-md); border-left: 3px solid var(--${achieved ? 'success' : 'warning'});">
+                    <div style="font-weight: 600; margin-bottom: var(--spacing-xs);">
+                        📊 Planned Output: ${activeEvent.plannedOutput} items
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                        <span style="font-size: var(--font-size-lg); font-weight: 700; color: var(--${achieved ? 'success' : 'warning'});">
+                            ${summary.itemsSold} sold (${percentage.toFixed(1)}%)
+                        </span>
+                        <span style="color: var(--${achieved ? 'success' : 'text-secondary'});">
+                            ${achieved ? '✅ Goal Achieved!' : `${activeEvent.plannedOutput - summary.itemsSold} short`}
+                        </span>
+                    </div>
+                </div>
+            `;
+        }
+
         summaryDiv.innerHTML = `
             <h3 style="margin-bottom: var(--spacing-md);">${activeEvent.name}</h3>
+            ${plannedOutputSection}
             <div style="background: var(--background); padding: var(--spacing-md); border-radius: var(--border-radius); margin-bottom: var(--spacing-md);">
                 <div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0;">
                     <span>Total Revenue:</span>
@@ -926,6 +1135,146 @@ class UIManager {
     }
 
     // ========================================
+    // DEMO MODE
+    // ========================================
+
+    /**
+     * Initialize demo mode on load
+     */
+    initDemoMode() {
+        const settings = this.dataManager.getSettings();
+        const toggle = document.getElementById('demo-mode-toggle');
+        
+        if (toggle) {
+            toggle.checked = settings.demoMode || false;
+        }
+        
+        this.updateDemoIndicator(settings.demoMode || false);
+    }
+
+    /**
+     * Toggle demo mode
+     */
+    toggleDemoMode(enabled) {
+        const settings = this.dataManager.getSettings();
+        settings.demoMode = enabled;
+        this.dataManager.saveSettings(settings);
+        
+        this.updateDemoIndicator(enabled);
+        
+        if (enabled) {
+            this.showToast('Demo Mode ON - Sales won\'t affect inventory', 'warning');
+        } else {
+            this.showToast('Demo Mode OFF - Real sales enabled', 'success');
+        }
+        
+        this.renderAll();
+    }
+
+    /**
+     * Update demo mode indicator
+     */
+    updateDemoIndicator(isDemoMode) {
+        const indicator = document.getElementById('demo-indicator');
+        if (indicator) {
+            indicator.style.display = isDemoMode ? 'block' : 'none';
+        }
+        
+        // Update event banner to show demo mode
+        const eventBanner = document.getElementById('event-banner');
+        if (eventBanner) {
+            if (isDemoMode) {
+                eventBanner.classList.add('demo-mode');
+            } else {
+                eventBanner.classList.remove('demo-mode');
+            }
+        }
+    }
+
+    /**
+     * Clear all demo sales
+     */
+    clearDemoSales() {
+        this.showConfirmDialog(
+            'Clear Demo Sales',
+            'This will delete all demo/test sales. Real sales and inventory are not affected.',
+            () => {
+                this.dataManager.clearAllDemoSales();
+                this.showToast('Demo sales cleared', 'success');
+                this.renderAll();
+            }
+        );
+    }
+
+    // ========================================
+    // THEME MANAGEMENT
+    // ========================================
+
+    /**
+     * Initialize theme on load
+     */
+    initTheme() {
+        const settings = this.dataManager.getSettings();
+        const themeSelect = document.getElementById('theme-select');
+        
+        if (themeSelect) {
+            themeSelect.value = settings.theme || 'auto';
+        }
+        
+        this.applyTheme(settings.theme || 'auto');
+        
+        // Listen for system theme changes when in auto mode
+        if (window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+                const settings = this.dataManager.getSettings();
+                if (settings.theme === 'auto') {
+                    this.applyTheme('auto');
+                }
+            });
+        }
+    }
+
+    /**
+     * Change theme (called when user selects from dropdown)
+     */
+    changeTheme(theme) {
+        const settings = this.dataManager.getSettings();
+        settings.theme = theme;
+        this.dataManager.saveSettings(settings);
+        
+        this.applyTheme(theme);
+        
+        const themeNames = {
+            'auto': 'Auto (System)',
+            'light': 'Light Mode',
+            'dark': 'Dark Mode'
+        };
+        
+        this.showToast(`Theme: ${themeNames[theme]}`, 'success');
+    }
+
+    /**
+     * Apply theme to the document
+     */
+    applyTheme(theme) {
+        const body = document.body;
+        
+        if (theme === 'dark') {
+            body.classList.add('dark-mode');
+        } else if (theme === 'light') {
+            body.classList.remove('dark-mode');
+        } else if (theme === 'auto') {
+            // Check system preference
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (prefersDark) {
+                body.classList.add('dark-mode');
+            } else {
+                body.classList.remove('dark-mode');
+            }
+        }
+    }
+
+    // ========================================
     // CASHIER SCREEN
     // ========================================
 
@@ -934,10 +1283,14 @@ class UIManager {
      */
     renderCashier() {
         const summary = this.businessLogic.getSalesSummary();
+        const activeEvent = this.dataManager.getActiveEvent();
         
         // Update stats
         document.getElementById('total-sales').textContent = this.formatCurrency(summary.totalRevenue);
         document.getElementById('items-sold').textContent = summary.itemsSold;
+
+        // Update planned output progress
+        this.updatePlannedOutputProgress(activeEvent, summary);
 
         // Render product buttons
         const products = this.dataManager.getProducts().filter(p => p.active);
@@ -977,12 +1330,146 @@ class UIManager {
     }
 
     /**
-     * Process a sale
+     * Update planned output progress indicator
+     */
+    updatePlannedOutputProgress(activeEvent, summary) {
+        const progressDiv = document.getElementById('planned-output-progress');
+        if (!progressDiv) return;
+        
+        // Only show if there's an active event with planned output
+        if (!activeEvent || !activeEvent.plannedOutput) {
+            progressDiv.style.display = 'none';
+            return;
+        }
+        
+        const planned = activeEvent.plannedOutput;
+        const sold = summary.itemsSold;
+        const percentage = Math.min((sold / planned) * 100, 100);
+        const remaining = Math.max(planned - sold, 0);
+        
+        // Determine status color
+        let statusClass = 'warning';
+        let statusText = 'In Progress';
+        
+        if (percentage >= 100) {
+            statusClass = 'success';
+            statusText = 'Goal Reached! 🎉';
+        } else if (percentage >= 75) {
+            statusClass = 'success';
+            statusText = 'Almost There!';
+        } else if (percentage >= 50) {
+            statusClass = 'primary';
+            statusText = 'Halfway There!';
+        }
+        
+        progressDiv.style.display = 'block';
+        progressDiv.innerHTML = `
+            <div style="margin: var(--spacing-md) 0; padding: var(--spacing-md); background: var(--surface); border-radius: var(--border-radius); border-left: 3px solid var(--${statusClass});">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm);">
+                    <span style="font-weight: 600; color: var(--text-primary);">📊 Planned Output Progress</span>
+                    <span style="font-weight: 700; color: var(--${statusClass});">${statusText}</span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--spacing-xs);">
+                    <span style="font-size: var(--font-size-lg); font-weight: 700; color: var(--${statusClass});">
+                        ${sold} / ${planned}
+                    </span>
+                    <span style="font-size: var(--font-size-sm); color: var(--text-secondary);">
+                        ${remaining} remaining
+                    </span>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div style="width: 100%; height: 8px; background: var(--background); border-radius: 4px; overflow: hidden;">
+                    <div style="width: ${percentage}%; height: 100%; background: var(--${statusClass}); transition: width 0.3s ease;"></div>
+                </div>
+                
+                <div style="margin-top: var(--spacing-xs); font-size: var(--font-size-xs); color: var(--text-secondary); font-style: italic;">
+                    ${percentage.toFixed(1)}% complete
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Process a sale - Opens batch modal
      */
     processSale(productId) {
+        this.openBatchSaleModal(productId);
+    }
+
+    /**
+     * Open batch sale modal
+     */
+    openBatchSaleModal(productId) {
+        const product = this.dataManager.getProducts().find(p => p.id === productId);
+        if (!product) return;
+
+        // Store current product
+        this.currentBatchProduct = product;
+
+        // Set up modal
+        document.getElementById('batch-sale-title').textContent = product.name;
+        document.getElementById('batch-product-name').textContent = product.name;
+        document.getElementById('batch-product-price').textContent = `${this.formatCurrency(product.sellingPrice)} each`;
+        document.getElementById('batch-quantity').value = '1';
+        
+        // Update total and warnings
+        this.updateBatchTotal();
+
+        this.openModal('batch-sale-modal');
+    }
+
+    /**
+     * Update batch sale total and check stock warnings
+     */
+    updateBatchTotal() {
+        if (!this.currentBatchProduct) return;
+
+        const quantity = parseInt(document.getElementById('batch-quantity').value) || 1;
+        const total = this.currentBatchProduct.sellingPrice * quantity;
+
+        // Update total display
+        document.getElementById('batch-total-amount').textContent = this.formatCurrency(total);
+
+        // Check for stock warnings (soft - non-blocking)
+        const warnings = this.businessLogic.checkStockWarnings(this.currentBatchProduct.id, quantity);
+        const warningsDiv = document.getElementById('batch-warnings');
+
+        if (warnings && warnings.length > 0) {
+            warningsDiv.innerHTML = `
+                <strong style="color: var(--warning);">⚠️ Low Stock Warning:</strong><br>
+                ${warnings.map(w => 
+                    `${w.ingredientName}: ~${w.estimatedCupsLeft} cups remaining after this sale`
+                ).join('<br>')}
+            `;
+            warningsDiv.style.display = 'block';
+        } else {
+            warningsDiv.innerHTML = '';
+            warningsDiv.style.display = 'none';
+        }
+    }
+
+    /**
+     * Confirm batch sale
+     */
+    confirmBatchSale() {
+        if (!this.currentBatchProduct) return;
+
+        const quantity = parseInt(document.getElementById('batch-quantity').value) || 1;
+
+        if (quantity < 1) {
+            this.showToast('Quantity must be at least 1', 'error');
+            return;
+        }
+
         try {
-            const sale = this.businessLogic.processSale(productId);
-            this.showToast('Sale recorded!', 'success');
+            // Process sale with quantity
+            this.businessLogic.processSale(this.currentBatchProduct.id, quantity);
+            
+            this.showToast(`Sold ${quantity}x ${this.currentBatchProduct.name}`, 'success');
+            this.closeModal('batch-sale-modal');
+            this.currentBatchProduct = null;
             this.renderAll();
         } catch (error) {
             this.showToast(error.message, 'error');
@@ -991,15 +1478,27 @@ class UIManager {
 
     /**
      * Undo last sale
+     * Shows quantity info for batch sales
      */
     undoSale() {
+        const lastSale = this.dataManager.getLastSale();
+        if (!lastSale) {
+            this.showToast('No sale to undo', 'error');
+            return;
+        }
+
+        const quantity = lastSale.quantity || 1;
+        const quantityText = quantity > 1 ? ` (${quantity}x)` : '';
+        
         this.showConfirmDialog(
             'Undo Last Sale',
-            'Are you sure you want to undo the last sale? Stock will be restored.',
+            `Undo: ${lastSale.productName}${quantityText} - ${this.formatCurrency(lastSale.sellingPrice)}?\n\nStock will be restored.`,
             () => {
                 try {
                     const sale = this.businessLogic.undoLastSale();
-                    this.showToast(`Undid sale: ${sale.productName}`, 'success');
+                    const qty = sale.quantity || 1;
+                    const qtyText = qty > 1 ? ` (${qty}x)` : '';
+                    this.showToast(`Undone: ${sale.productName}${qtyText}`, 'success');
                     this.renderAll();
                 } catch (error) {
                     this.showToast(error.message, 'error');
@@ -1544,11 +2043,15 @@ class UIManager {
     /**
      * Render reports screen with CORRECT ACCOUNTING
      * Profit = Revenue - Fixed Event Cost
+     * Handles both real and demo sales
      */
     renderReports() {
         const summary = this.businessLogic.getSalesSummary();
         const breakdown = this.businessLogic.getSalesBreakdown();
-        const sales = this.dataManager.getSales();
+        
+        // Get appropriate sales based on mode
+        const settings = this.dataManager.getSettings();
+        const sales = settings.demoMode ? this.dataManager.getDemoSales() : this.dataManager.getSales();
 
         // Update summary stats with CORRECT accounting
         document.getElementById('report-revenue').textContent = this.formatCurrency(summary.totalRevenue);
@@ -1593,10 +2096,13 @@ class UIManager {
         } else {
             transactionContainer.innerHTML = recentSales.map(sale => {
                 const date = new Date(sale.timestamp);
+                const quantity = sale.quantity || 1;
+                const quantityBadge = quantity > 1 ? ` <span style="background: var(--primary); color: white; padding: 0.125rem 0.375rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">×${quantity}</span>` : '';
+                
                 return `
                     <div class="transaction-item">
                         <div>
-                            <div class="transaction-product">${sale.productName}</div>
+                            <div class="transaction-product">${sale.productName}${quantityBadge}</div>
                             <div class="transaction-meta">${this.formatDateTime(date)}</div>
                         </div>
                         <div class="transaction-price">${this.formatCurrency(sale.sellingPrice)}</div>
@@ -1739,6 +2245,7 @@ class UIManager {
 // ========================================
 // INITIALIZATION
 // ========================================
+
 // Initialize the app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     const dataManager = new DataManager();
