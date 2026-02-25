@@ -1296,3 +1296,54 @@ form {
 #batch-warnings:empty {
     display: none;
 }
+
+/* New UI classes from Refactoring */
+.qty-badge {
+    background: var(--primary);
+    color: white;
+    padding: 0.125rem 0.375rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.planned-output-goal {
+    background: var(--surface);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-md);
+    border-left: 3px solid var(--success);
+    font-size: var(--font-size-sm);
+}
+
+.summary-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.summary-details div {
+    display: flex;
+    justify-content: space-between;
+}
+
+.summary-total {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 2px solid var(--border);
+    font-size: var(--font-size-lg);
+}
+
+.stock-warning {
+    color: var(--warning);
+    font-weight: 600;
+}
+
+.break-even-info {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--surface);
+    border-left: 3px solid var(--primary);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+}

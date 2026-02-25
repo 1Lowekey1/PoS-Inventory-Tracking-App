@@ -1,258 +1,60 @@
-# 🔄 Migration Guide: Old to New Costing Model
+# 🔄 Migration Guide: v1.x to v2.0
 
-## What Changed?
+Version 2.0 introduces a fundamental change in how costs and profits are calculated to make the system more intuitive for booth operators.
 
-The app now uses a **batch purchase model** to fix a critical costing bug where drinks showed incorrect costs (e.g., ₱780 instead of ₱15.60).
+## ⚠️ What has changed?
 
-### Old Model (BROKEN)
-```
-Ingredient stored: costPerUnit = ₱0.50
-Problem: If you bought in bulk, you had to manually calculate per-unit cost
-```
+### 1. Costing Model
+- **Old (v1.x)**: Per-unit costing. You entered batch costs and quantities for every ingredient, and the system calculated a "per-cup" cost.
+- **New (v2.0)**: **Fixed Event Cost**. You enter the total amount spent on ALL ingredients at the start of an event. Profit is simply `Revenue - Fixed Cost`.
 
-### New Model (FIXED)
-```
-Ingredient stores: 
-- Batch Cost = ₱780 (what you paid)
-- Batch Quantity = 1000ml (what you bought)
-System computes: ₱0.78/ml automatically
-```
+### 2. Event Sessions
+- Sales are now grouped into **Events**. You must start an event to record real sales.
 
-## Do You Need to Migrate?
-
-**If you're a NEW user:** No action needed! Just start using the app.
-
-**If you have EXISTING data:** You need to update your ingredients to the new format.
-
-## Migration Steps
-
-### Option 1: Fresh Start (Recommended for Small Datasets)
-
-1. **Backup your old data:**
-   - Reports → 💾 Backup Data
-   - Save the JSON file somewhere safe
-
-2. **Clear browser data:**
-   - Open browser console (F12)
-   - Run: `localStorage.clear(); location.reload();`
-
-3. **Re-enter ingredients with batch data:**
-   - Instead of "Cost per unit: ₱0.78"
-   - Enter "Batch cost: ₱780, Batch quantity: 1000ml"
-
-4. **Recreate products:**
-   - Same recipes, but products will now show correct costs
-
-### Option 2: Automatic Migration (For Existing Data)
-
-If you have lots of ingredients and products, use this automatic migration script:
-
-1. **Export your current data first:**
-   - Reports → 💾 Backup Data
-
-2. **Open browser console** (F12)
-
-3. **Paste this migration script:**
-
-```javascript
-// MIGRATION SCRIPT: Convert old model to new batch model
-(function migrateToBatchModel() {
-    console.log('Starting migration to batch purchase model...');
-    
-    // Get old ingredients
-    const oldIngredients = JSON.parse(localStorage.getItem('booth_ingredients') || '[]');
-    
-    if (oldIngredients.length === 0) {
-        console.log('No ingredients to migrate.');
-        return;
-    }
-    
-    // Ask user for default batch quantity
-    const defaultBatchQty = prompt(
-        'Migration: Enter default batch quantity for conversion\n\n' +
-        'For example:\n' +
-        '- If you typically buy 1000ml bottles, enter: 1000\n' +
-        '- If you buy 500g bags, enter: 500\n\n' +
-        'Enter default batch size:',
-        '1000'
-    );
-    
-    if (!defaultBatchQty) {
-        console.log('Migration cancelled.');
-        return;
-    }
-    
-    const batchQty = parseFloat(defaultBatchQty);
-    
-    // Convert each ingredient
-    const newIngredients = oldIngredients.map(ing => {
-        // If already migrated (has totalCost), skip
-        if (ing.totalCost !== undefined) {
-            console.log(`✓ ${ing.name} already migrated`);
-            return ing;
-        }
-        
-        // Convert old model to new
-        const totalQuantity = ing.currentStock || batchQty;
-        const totalCost = (ing.costPerUnit || 0) * totalQuantity;
-        
-        console.log(`Converting ${ing.name}:`);
-        console.log(`  Old: ${ing.costPerUnit}/unit, stock: ${ing.currentStock}`);
-        console.log(`  New: ₱${totalCost} for ${totalQuantity}${ing.unit}`);
-        
-        return {
-            id: ing.id,
-            name: ing.name,
-            unit: ing.unit,
-            totalCost: totalCost,
-            totalQuantity: totalQuantity,
-            lowStockThreshold: ing.lowStockThreshold
-        };
-    });
-    
-    // Save migrated data
-    localStorage.setItem('booth_ingredients', JSON.stringify(newIngredients));
-    
-    console.log('✓ Migration complete!');
-    console.log('Please review your ingredients and adjust batch costs as needed.');
-    console.log('Reloading page...');
-    
-    setTimeout(() => location.reload(), 2000);
-})();
-```
-
-4. **Press Enter** to run the script
-
-5. **Review all ingredients:**
-   - Go to Inventory tab
-   - Check that batch costs make sense
-   - Edit any that need adjustment
-
-### Option 3: Manual Update (Precise Control)
-
-For each ingredient:
-
-1. **Go to Inventory tab**
-2. **Tap Edit on the ingredient**
-3. **Convert your data:**
-   
-   **Example 1: You know the exact batch purchase**
-   ```
-   Old: Cost per unit = ₱0.78
-   
-   New:
-   Batch Cost = ₱780 (what you paid for the bottle)
-   Batch Quantity = 1000 ml (size of bottle)
-   ```
-   
-   **Example 2: You only know per-unit cost**
-   ```
-   Old: Cost per unit = ₱0.86
-   
-   New (estimate):
-   Batch Cost = ₱430 (₱0.86 × 500)
-   Batch Quantity = 500 g (typical bag size)
-   ```
-
-4. **Tap Save**
-
-5. **Repeat for all ingredients**
-
-## Verification
-
-After migration, verify costs are correct:
-
-1. **Go to Products tab**
-2. **Check each product's cost**
-3. **Look for warnings:**
-   - ⚠️ "Pricing Mismatch" = cost exceeds selling price
-   - This means you need to adjust either the recipe or the price
-
-### Expected Costs
-
-**Example: Iced Caramel Latte**
-```
-Recipe:
-- Syrup: 20ml
-- Coffee: 18g
-- Milk: 150ml
-- Cup: 1pc
-
-Cost Breakdown:
-- Syrup: ₱0.78/ml × 20ml = ₱15.60 ✓
-- Coffee: ₱0.86/g × 18g = ₱15.48 ✓
-- Milk: ₱0.28/ml × 150ml = ₱42.00 ✓
-- Cup: ₱4.30/pc × 1pc = ₱4.30 ✓
-
-Total: ₱77.38 ✓
-Selling Price: ₱120.00
-Profit: ₱42.62 (35.5%)
-```
-
-**Red Flags (MUST FIX):**
-```
-❌ Cost: ₱780.00 (entire batch assigned to one drink!)
-❌ Cost: ₱214.00 (partial batch incorrectly assigned)
-❌ Cost > Selling Price (losing money per sale)
-```
-
-## Common Issues
-
-### Issue: "All my costs are showing as ₱0.00"
-
-**Cause:** Batch quantity is zero or not set
-
-**Fix:** 
-1. Edit ingredient
-2. Set Batch Quantity > 0
-3. Save
-
-### Issue: "Cost looks too high"
-
-**Cause:** Batch cost might be wrong or batch quantity too small
-
-**Fix:**
-1. Edit ingredient
-2. Verify batch cost and quantity
-3. Example: If you paid ₱780 for 1L (1000ml), not 1ml
-4. Save
-
-### Issue: "Migration script not working"
-
-**Fix:**
-1. Make sure you copied the entire script
-2. Check browser console for errors
-3. If errors persist, use Manual Update option instead
-
-## FAQ
-
-**Q: Do I need to update my products?**  
-A: No, products automatically recalculate costs using the new ingredient data.
-
-**Q: Will my sales history be affected?**  
-A: No, past sales are preserved in their snapshot form.
-
-**Q: Can I undo the migration?**  
-A: Yes, restore from the backup JSON you created in step 1.
-
-**Q: What if I don't know my batch purchase costs?**  
-A: Estimate based on typical purchase sizes:
-- Syrups: Usually 1L (1000ml) bottles
-- Coffee: Usually 250g or 500g bags
-- Milk: Usually 1L (1000ml) cartons
-
-**Q: How do I restore from backup?**  
-A: See README.md "Restore (Import)" section
-
-## Support
-
-If you encounter issues:
-
-1. **Check the backup** - Make sure it's saved
-2. **Try Manual Update** - Slower but more reliable
-3. **Fresh Start** - If you have very few items
-4. **Document what went wrong** - Save error messages
+### 3. Inventory Management
+- Inventory is now focused on **Operational Quantities** (how much do I have left?) rather than accounting costs.
 
 ---
 
-**After migration, your costs will be mathematically correct and scale properly with batch size changes!** 🎯
+## 🛠 How to Migrate
+
+### Option 1: The Fresh Start (Highly Recommended)
+Because the data models have changed significantly, a fresh start is the cleanest way to move to v2.0.
+
+1. **Backup your old data**: Go to Reports and tap **Backup Data** in your old version.
+2. **Clear Storage**: Open the browser console (F12) and run `localStorage.clear(); location.reload();`.
+3. **Re-enter Ingredients**: Add your ingredients with just their current quantities. You no longer need to enter batch costs here.
+4. **Re-enter Products**: Recreate your products and recipes.
+5. **Start an Event**: When you start your first event in v2.0, enter your total supply cost in the **Fixed Event Cost** field.
+
+### Option 2: Manual Data Update
+If you want to keep your current product and ingredient lists:
+
+1. **Update Ingredients**:
+   - The system will ignore the old `totalCost` and `costPerUnit` fields.
+   - Simply verify that your `totalQuantity` for each ingredient is correct.
+2. **Update Products**:
+   - Your recipes will still work.
+   - Products no longer show "Profit per sale" because profit is now calculated at the Event level.
+3. **Start a New Event**:
+   - Past sales from v1.x will not be linked to new v2.0 events. It is best to export your v1.x reports before starting your first v2.0 event.
+
+---
+
+## ❓ FAQ
+
+**Q: Where did my "Profit per Drink" go?**
+A: In a real-world booth, your profit isn't realized per drink—it's realized once you've covered your initial sunk costs. v2.0 tracks your progress toward breaking even for the entire event.
+
+**Q: Do I still need to enter how much a bottle of syrup costs?**
+A: Not in the Ingredient screen. Instead, sum up the cost of all your supplies and enter that total when you tap "Start Event".
+
+**Q: Can I still see how many items I sold?**
+A: Yes! The Reports tab provides a full breakdown of quantities sold per product.
+
+**Q: What happens to my old sales?**
+A: Old sales will still exist in your browser storage but won't be formatted correctly for the new v2.0 Reports. We recommend clearing your sales history and starting fresh with an Event.
+
+---
+
+**Need help?** All v2.0 code is modular and commented in the `js/` directory!
