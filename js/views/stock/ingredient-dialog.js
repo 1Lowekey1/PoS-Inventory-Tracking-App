@@ -22,7 +22,15 @@ export function ingredientDialog(ing = null) {
         fields: formHTML(ing),
         onMount: (m) => wireForm(m, ing, () => modal),
         async onSubmit(form) {
-            await store.saveIngredient(readForm(form, ing));
+            const record = readForm(form, ing);
+            // A blank amount means 0, which makes every product using it show "Out". Check first.
+            if (isNew && record.tracked && val(form, 'stock') === '') {
+                const ok = await confirmDialog('No amount on hand?',
+                    `"${record.name}" will start at 0, so products that use it will show "Out" until you restock or count it.\n\nTip: fill in "Amount on hand now" if you already have some.`,
+                    { okLabel: 'Save with 0' });
+                if (!ok) return false; // back to the form
+            }
+            await store.saveIngredient(record);
             toast(isNew ? `Added ${val(form, 'name')}` : 'Saved', { type: 'success' });
         }
     });

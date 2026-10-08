@@ -245,6 +245,10 @@ Orders store the recipe used at sale time, so a void restores exactly what was t
 
 ## Changelog
 
+**3.2.2**: clearer "Out"
+- An "Out" product now says why: the tile (hover), a message when you tap it, and the Menu list name the ingredient that's short, e.g. "Out: Caramel syrup at 0 ml"
+- Saving a new tracked ingredient with **Amount on hand** left blank now asks first, because it starts at 0 and makes every product using it show Out (this was behind "duplicated products show Out")
+
 **3.2.1**: code clean-up for developers (no change to how the app works)
 - Code reorganised: the data layer is split by topic (`js/store/`), printing into `js/printing/`, and big screens have helper folders
 - Classes where they help: `Cart`, `Printer` with one `Transport` class per connection type, `EscPos`, `Modal`, `FormDraft`

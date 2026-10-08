@@ -63,7 +63,7 @@ function productsHTML() {
                 <button class="grow menu-main" data-act="edit-product" data-id="${p.id}">
                     <b>${esc(p.name)}</b> <span class="muted">${money(p.price)}</span>
                     <small class="muted">${cat ? `${esc(cat.name)} · ` : ''}${esc(recipeText(p.recipe)) || 'No recipe'}</small>
-                    <small class="muted">${cost !== null ? `Est. cost ${money(cost)} · margin ${p.price ? Math.round(((p.price - cost) / p.price) * 100) : 0}%` : ''}${Number.isFinite(avail) ? `${cost !== null ? ' · ' : ''}can make ${avail} more` : ''}</small>
+                    <small class="muted">${cost !== null ? `Est. cost ${money(cost)} · margin ${p.price ? Math.round(((p.price - cost) / p.price) * 100) : 0}%` : ''}${Number.isFinite(avail) ? `${cost !== null ? ' · ' : ''}${avail > 0 ? `can make ${avail} more` : `<span class="neg">Out: ${esc(store.missingIngredients(p).map((m) => `${m.name} at ${qtyFmt(m.left)} ${m.unit}`).join(', '))}</span>`}` : ''}</small>
                 </button>
                 <label class="switch" title="Show on Sell screen"><input type="checkbox" data-act="toggle" data-id="${p.id}" ${p.active === false ? '' : 'checked'}><span></span></label>
                 <div class="updown">

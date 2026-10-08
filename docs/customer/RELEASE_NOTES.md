@@ -4,6 +4,13 @@ To update, open PopPOS while online. When it says **"A new version is ready"**, 
 
 ---
 
+## 3.2.2: clearer "Out"
+
+- When a product shows **Out**, PopPOS now tells you which ingredient is short: tap the product, or check the Menu list ("Out: Caramel syrup at 0 ml").
+- Creating an ingredient without an amount on hand now asks before saving it as 0, so new products don't show Out by surprise.
+
+---
+
 ## 3.2.1: behind-the-scenes tidy-up
 
 Nothing changes in how you use PopPOS. Small fixes:

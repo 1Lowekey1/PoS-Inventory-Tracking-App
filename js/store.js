@@ -22,7 +22,7 @@ export {
 export {
     lineRecipe, linePrice, productOptions, addonRecipe,
     contentKey, lineKey, mergeLines, resolveLine,
-    cartUsage, orderUsage, cartTotals, unitsAvailable, estUnitCost
+    cartUsage, orderUsage, cartTotals, unitsAvailable, missingIngredients, estUnitCost
 } from './store/recipes.js';
 
 // Selling, voids, queue, practice mode ...................... store/sales.js

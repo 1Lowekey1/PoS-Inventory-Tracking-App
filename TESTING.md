@@ -2,7 +2,7 @@
 
 There are two parts:
 
-1. **Automated edge-case suite:** 51 tests of the money, stock and data logic. Takes about 2 seconds.
+1. **Automated edge-case suite:** 52 tests of the money, stock and data logic. Takes about 2 seconds.
 2. **Hands-on edge cases:** things only a person with a real phone, printer or bad Wi-Fi can check.
 
 ---
@@ -15,7 +15,7 @@ python devserver.py
 
 Run it inside the `PopPOS` folder, then open **<http://localhost:5173/tests/>**. On GitHub Pages it's at `https://<you>.github.io/<repo>/tests/`.
 
-The suite uses its own throwaway database and deletes it afterwards, so **your real data is never touched**. You should see **"All 51 edge cases passed"**. A failure shows the expected vs actual value.
+The suite uses its own throwaway database and deletes it afterwards, so **your real data is never touched**. You should see **"All 52 edge cases passed"**. A failure shows the expected vs actual value.
 
 | Area | What's covered |
 |---|---|
@@ -85,6 +85,7 @@ Each item lists **what to do** and **what should happen** (✅).
 | B11 | Then sell a drink using 18 g and void it | Stock goes 1,000 → 982 → 1,000 |
 | B12 | Ingredient in **packs** → change unit to **pcs** | Warning that it can't convert; must type the amount in pcs; recipes listed to check |
 | B13 | During an event, **Count** an item *higher* than the app shows | Asks *Log as restock* or *It's a correction*; restock opens the Restock form with the difference filled in |
+| B14 | Duplicate a product, add a new ingredient to the copy from "＋ New ingredient…" and leave its amount blank | Asked "No amount on hand?" first; if saved with 0 the copy shows **Out**, and tapping it says "Not enough Caramel syrup (0 ml left)"; Menu list shows the same reason |
 
 ### C. Money & cash drawer
 

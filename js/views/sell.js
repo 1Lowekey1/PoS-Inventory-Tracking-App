@@ -104,6 +104,13 @@ function renderBanner() {
     region('banner').innerHTML = html;
 }
 
+/** "Not enough Caramel syrup (0 ml left)": why a product shows Out. */
+function outReason(product, reserved = store.cartUsage(cart.lines)) {
+    const missing = store.missingIngredients(product, [], reserved);
+    if (!missing.length) return 'Out of stock';
+    return `Not enough ${missing.map((m) => `${m.name} (${m.left} ${m.unit} left)`).join(', ')}`;
+}
+
 /** "2× Iced Americano (Simple syrup)" */
 const itemSummary = (i) => {
     const extras = [...(i.options || []), ...(i.modifiers || [])].map((x) => x.name);
@@ -163,7 +170,7 @@ function renderTiles() {
             ${inCart.get(p.id) ? `<span class="tile-count">${inCart.get(p.id)}</span>` : ''}
             <span class="tile-name">${esc(p.name)}</span>
             <span class="tile-price">${money(p.price)}</span>
-            ${out ? '<span class="tile-badge bad">Out</span>' : low ? `<span class="tile-badge warn">${left} left</span>` : ''}
+            ${out ? `<span class="tile-badge bad" title="${esc(outReason(p, reserved))}">Out</span>` : low ? `<span class="tile-badge warn">${left} left</span>` : ''}
             ${hasChoices ? '<span class="tile-opts" title="Hold for options">•••</span>' : ''}
         </button>`;
     }).join('');
@@ -288,7 +295,12 @@ async function onClick(e) {
 
     if (d.add) {
         if (longPressed) { longPressed = false; return; }
-        return cart.add({ productId: d.add });
+        const product = byId('products', d.add);
+        const reason = store.unitsAvailable(product, [], store.cartUsage(cart.lines)) <= 0 ? outReason(product) : '';
+        cart.add({ productId: d.add });
+        // Selling past zero is allowed (counts drift), but say why the tile says Out.
+        if (reason) toast(`${reason}. Fix it on the Stock tab (Count or Restock) if that's wrong.`, { type: 'warn', duration: 4500 });
+        return;
     }
     if (d.cat) { category = d.cat; renderCategories(); renderTiles(); return; }
     if (d.inc) return cart.setQty(d.inc, cart.find(d.inc).qty + 1);

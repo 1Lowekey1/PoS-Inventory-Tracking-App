@@ -1,6 +1,6 @@
 // Offline support: cache the app shell on install, serve it cache-first.
 // Bump VERSION whenever any file below changes so devices pick up the update.
-const VERSION = 'poppos-v3.2.1';
+const VERSION = 'poppos-v3.2.2';
 const FILES = [
     './',
     'index.html',

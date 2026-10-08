@@ -122,6 +122,18 @@ test('Out of stock: blocked when "Block sales" is on, nothing saved', 'Failed sa
     eq(store.realOrders().length, 0, 'no order saved');
 });
 
+test('Duplicated product stays available; "Out" names the missing ingredient', 'Regression: a copy using a new 0-stock ingredient showed "Out" with no reason.', async () => {
+    const f = await setup();
+    const latte = byId('products', f.latte.id);
+    await store.saveProduct({ ...latte, id: undefined, createdAt: undefined, sort: undefined, name: 'Latte (copy)' });
+    const copy = S.products.find((p) => p.name === 'Latte (copy)');
+    eq(store.unitsAvailable(copy), store.unitsAvailable(latte), 'copy has the same availability');
+    const syrup = await store.saveIngredient({ name: 'Caramel syrup', unit: 'ml', tracked: true }); // amount left blank = 0
+    await store.saveProduct({ ...copy, recipe: [...copy.recipe, { ingredientId: syrup.id, qty: 20 }] });
+    eq(store.unitsAvailable(byId('products', copy.id)), 0, 'out');
+    eq(store.missingIngredients(byId('products', copy.id)).map((m) => m.name), ['Caramel syrup'], 'reason');
+});
+
 test('"N left" respects what is already in the cart', 'Tile badge must not promise cups you already rang up.', async () => {
     const f = await setup();
     const reserved = store.cartUsage([line(f.latte, 7)]);

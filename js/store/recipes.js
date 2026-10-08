@@ -136,6 +136,21 @@ export function unitsAvailable(product, modifierIds = [], reserved = new Map()) 
     return min;
 }
 
+/**
+ * Tracked ingredients that can't cover one more of this product (the reason a tile says "Out"):
+ * [{ name, unit, left }]. `reserved` = usage already in the cart.
+ */
+export function missingIngredients(product, modifierIds = [], reserved = new Map()) {
+    const missing = [];
+    for (const { ingredientId, qty } of lineRecipe(product, modifierIds)) {
+        const ing = byId('ingredients', ingredientId);
+        if (!ing?.tracked) continue;
+        const left = rq(ing.stock - (reserved.get(ingredientId) || 0));
+        if (left < qty) missing.push({ name: ing.name, unit: ing.unit, left });
+    }
+    return missing;
+}
+
 /** Estimated cost of one item from ingredient unit costs; null if any cost is missing. Optional rows are ignored. */
 export function estUnitCost(recipe) {
     let total = 0;

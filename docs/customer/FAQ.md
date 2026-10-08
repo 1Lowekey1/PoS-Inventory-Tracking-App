@@ -41,7 +41,7 @@ Orders → tap the order → **Wrong payment method?** → choose the right one.
 Yes. **Discount** → *Senior / PWD* (20%). You can add your own presets or type a custom % or amount.
 
 **The app says something is "Out" but I still have some.**
-The count is off. Fix it with Stock → **Count**. Selling isn't blocked by default, so you can keep going.
+Tap the product (or check the Menu list) to see which ingredient is short, then fix it with Stock → **Count** or **Restock**. A new ingredient created without an amount on hand starts at 0. Selling isn't blocked by default, so you can keep going.
 
 ## Stock & costs
 
