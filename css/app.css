@@ -488,7 +488,8 @@ g[data-tip]:hover .ch-bar { fill: var(--primary-hover); }
 .summary-grid div { background: var(--surface-2); border-radius: var(--r-sm); padding: .6rem .7rem; display: flex; flex-direction: column; }
 .summary-grid b { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
 .cap-row, .recipe-row { display: grid; grid-template-columns: 1fr 110px 40px; gap: 6px; align-items: center; margin-bottom: 6px; }
-.recipe-row { grid-template-columns: 1fr 90px 44px 40px; }
+.recipe-row { grid-template-columns: 1fr 84px 76px 40px; }
+.recipe-row [data-unit] { padding-inline: .45rem; min-width: 0; }
 .recipe-row .unit { color: var(--muted); font-size: .85rem; }
 .count-grid { display: flex; flex-direction: column; gap: 6px; }
 .count-row { display: grid; grid-template-columns: 1fr 110px 44px; gap: 8px; align-items: center; }
@@ -561,15 +562,15 @@ g[data-tip]:hover .ch-bar { fill: var(--primary-hover); }
 .mini-chip .ic { width: 14px; height: 14px; }
 .mini-chip.on { border-style: solid; border-color: var(--primary); background: var(--primary-soft); color: var(--text); }
 .mini-chip.ghost { border-style: solid; }
-.recipe-row.has-opt { grid-template-columns: 1fr 84px 40px auto 40px; }
+.recipe-row.has-opt { grid-template-columns: 1fr 84px 76px auto 40px; }
 .opt-toggle { display: inline-flex; align-items: center; gap: .3rem; font-size: .82rem; color: var(--text-2); cursor: pointer; white-space: nowrap; }
 .opt-toggle input { width: 18px; height: 18px; accent-color: var(--primary); }
 .onhand { font-size: 1.1rem; font-variant-numeric: tabular-nums; min-height: 44px; display: flex; align-items: center; }
 .pending-card { border-color: color-mix(in srgb, var(--warn) 50%, var(--line)); }
 .hint > span { flex: 1; }
 @media (max-width: 520px) {
-    .recipe-row.has-opt { grid-template-columns: 84px 40px 1fr 40px; }
-    .recipe-row.has-opt select { grid-column: 1 / -1; }
+    .recipe-row.has-opt { grid-template-columns: 84px 76px 1fr 40px; }
+    .recipe-row.has-opt [data-ing] { grid-column: 1 / -1; }
 }
 .cart-head { gap: .4rem; }
 .cart-head h2 { white-space: nowrap; font-size: 1rem; }

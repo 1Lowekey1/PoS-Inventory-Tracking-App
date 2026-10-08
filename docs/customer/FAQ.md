@@ -55,7 +55,10 @@ Event → **Restock** → choose the syrup → **Made** → the amount made. Add
 Tick **I'll add the cost later**. It shows as *Cost pending* and you'll be reminded. You can fill it in even after the event ends.
 
 **I set beans up in kg but my recipes are in grams.**
-Edit the ingredient and change the unit to g. Everything converts automatically (1 kg → 1,000 g), including recipes.
+No problem: in the recipe, pick **g** in the unit picker next to the amount (it starts there anyway). Or change the ingredient itself to g and everything converts automatically (1 kg → 1,000 g), including recipes.
+
+**A product says "Out" right after I made it.**
+Check the unit next to each recipe amount. 180 **L** of milk instead of 180 **ml** is more than you have, so the product is Out. The editor shows a warning when this happens.
 
 **How is profit calculated?**
 Gross sales − (capital + expenses). Capital is what you bought before the event; expenses are what you bought during it.

@@ -9,6 +9,7 @@ import { computeReport } from '../js/reports.js';
 import { convertV2 } from '../js/views/onboarding.js';
 import { esc, toCSV, r2 } from '../js/util.js';
 import { Cart } from '../js/views/sell/cart.js';
+import { readAmount, shownAmount } from '../js/views/unit-amount.js';
 import { EscPos } from '../js/printing/escpos.js';
 
 const tests = [];
@@ -466,6 +467,22 @@ test('Changing kg → g converts stock, alert, cost, recipes and history', 'Regr
     ok(S.movements.filter((m) => m.ingredientId === beans.id).every((m) => m.unit === 'g'), 'history in g');
     await store.voidOrder(o.id);
     eq(stock(beans), 1000, 'void after the change restores 18 g, not 0.018');
+});
+
+test('Recipe amounts can be typed in a smaller unit: 180 ml of milk stocked in L', 'Regression: typing 180 for an L ingredient meant 180 litres per drink.', async () => {
+    await fresh();
+    const milk = await store.saveIngredient({ name: 'Milk', unit: 'L', tracked: true, stock: 5 });
+    eq(store.compatibleUnits('L'), ['ml', 'L'], 'units offered');
+    eq(store.recipeUnitFor('L'), 'ml', 'defaults to ml');
+    const row = { ingredientId: milk.id, ...readAmount(milk.id, 180, 'ml') };
+    eq([row.qty, row.unit], [0.18, 'ml'], 'saved as 0.18 L, remembered as ml');
+    eq(shownAmount(row), 180, 'shown as 180 ml again');
+    await store.saveProduct({ name: 'Latte', price: 120, active: true, modifierIds: [], recipe: [row] });
+    eq(store.unitsAvailable(S.products[0]), 27, '5 L ÷ 0.18 L');
+    await startDay();
+    await sell([line(S.products[0], 2)]);
+    eq(stock(milk), 4.64, '2 lattes used 0.36 L');
+    eq(store.convertQty(1, 'pcs', 'pcs'), 1, 'non-convertible units stay as they are');
 });
 
 test('Changing to a unit that cannot convert uses the amount you enter', '', async () => {

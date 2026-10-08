@@ -33,7 +33,8 @@ export {
 // Ingredients, stock changes, units ......................... store/stock.js
 export {
     saveIngredient, deleteIngredient, ingredientUsedIn,
-    adjustStock, restockIngredient, unitFactor, stockSnapshot
+    adjustStock, restockIngredient, stockSnapshot,
+    unitFactor, compatibleUnits, recipeUnitFor, convertQty
 } from './store/stock.js';
 
 // Menu: products, categories, add-ons ....................... store/menu.js

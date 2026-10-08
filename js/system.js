@@ -1,7 +1,7 @@
 // Device-level concerns: version, theme, screen wake lock.
 import * as store from './store.js';
 
-export const APP_VERSION = '3.2.2';
+export const APP_VERSION = '3.3.0';
 
 /** Apply Settings → Theme: 'light' / 'dark' force it; 'auto' follows the device. */
 export function applyTheme() {

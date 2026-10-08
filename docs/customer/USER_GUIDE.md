@@ -61,6 +61,7 @@ The screens: **Sell · Orders · Stock · Event · Reports**, plus **Menu** and 
 2. **Category** (optional): becomes a tab on the Sell screen. **Tile colour** helps you find it fast.
 3. **Recipe:** one row per ingredient, in amounts for **one** item.
    - Ingredient missing? Choose **＋ New ingredient…** at the bottom of the dropdown.
+   - Pick the **unit** next to the amount: milk stocked in litres can be entered as *180 ml*, beans in kilos as *18 g*. It starts on the small unit. If one item would use more than your whole stock, you'll see a warning, so check the unit.
    - Tick **Optional** for free extras some customers want, e.g. *15 ml simple syrup* in an Iced Americano. It's only used when you tap it on the order.
 4. **Add-ons offered:** which add-ons appear first for this product.
 5. **Save.** The product list shows the estimated cost, the margin and "can make N more".

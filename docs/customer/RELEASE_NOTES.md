@@ -4,6 +4,14 @@ To update, open PopPOS while online. When it says **"A new version is ready"**, 
 
 ---
 
+## 3.3: recipe units
+
+- When building a recipe, each ingredient has a **unit picker**. Milk you stock in litres can be entered as **180 ml**, and beans in kilos as **18 g**. It starts on the small unit automatically.
+- If one drink would use more than you have in stock (e.g. 180 **L** of milk), the editor warns you, because that's almost always the wrong unit.
+- Works for add-ons and for "Made from" when restocking homemade syrups too.
+
+---
+
 ## 3.2.2: clearer "Out"
 
 - When a product shows **Out**, PopPOS now tells you which ingredient is short: tap the product, or check the Menu list ("Out: Caramel syrup at 0 ml").

@@ -1,6 +1,6 @@
 // Offline support: cache the app shell on install, serve it cache-first.
 // Bump VERSION whenever any file below changes so devices pick up the update.
-const VERSION = 'poppos-v3.2.2';
+const VERSION = 'poppos-v3.3.0';
 const FILES = [
     './',
     'index.html',
@@ -41,7 +41,8 @@ const FILES = [
     'js/views/sell/dialogs.js',
     'js/views/settings.js',
     'js/views/stock.js',
-    'js/views/stock/ingredient-dialog.js'
+    'js/views/stock/ingredient-dialog.js',
+    'js/views/unit-amount.js'
 ];
 
 self.addEventListener('install', (e) => {

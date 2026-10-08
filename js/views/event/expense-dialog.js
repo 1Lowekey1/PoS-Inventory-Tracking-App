@@ -7,8 +7,9 @@
 
 import * as store from '../../store.js';
 import { S, byId } from '../../store.js';
-import { esc, money, num, r2, qtyFmt } from '../../util.js';
+import { esc, money, num, rq, qtyFmt } from '../../util.js';
 import { icon, toast, formModal, confirmDialog, val, checked } from '../../ui.js';
+import { entryUnit, unitSelectHTML, shownAmount, readAmount } from '../unit-amount.js';
 
 /**
  * existing: an expense to edit (null for a new entry).
@@ -42,12 +43,15 @@ export function expenseDialog(existing = null, kind = 'expense', preset = {}) {
 
 const trackedIngredients = () => S.ingredients.filter((i) => i.tracked).sort((a, b) => a.name.localeCompare(b.name));
 
-/** One "Made from" row: ingredient + amount used. */
-const inputRowHTML = (row = {}) => `<div class="recipe-row">
-    <select data-in-ing><option value="">Ingredient…</option>${S.ingredients.map((i) => `<option value="${i.id}" ${i.id === row.ingredientId ? 'selected' : ''}>${esc(i.name)}</option>`).join('')}</select>
-    <input type="number" data-in-qty inputmode="decimal" step="any" min="0" value="${row.qty ?? ''}" placeholder="qty">
-    <span class="unit" data-in-unit>${esc(byId('ingredients', row.ingredientId)?.unit || '')}</span>
-    <button type="button" class="icon-btn" data-rmrow aria-label="Remove">${icon('x')}</button></div>`;
+/** One "Made from" row: ingredient + amount used, in any compatible unit (sugar in kg → g). row.qty is in the ingredient's unit. */
+function inputRowHTML(row = {}) {
+    const ing = byId('ingredients', row.ingredientId);
+    return `<div class="recipe-row">
+        <select data-in-ing><option value="">Ingredient…</option>${S.ingredients.map((i) => `<option value="${i.id}" ${i.id === row.ingredientId ? 'selected' : ''}>${esc(i.name)}</option>`).join('')}</select>
+        <input type="number" data-in-qty inputmode="decimal" step="any" min="0" value="${shownAmount(row)}" placeholder="qty">
+        ${unitSelectHTML(ing, entryUnit(ing, row.unit))}
+        <button type="button" class="icon-btn" data-rmrow aria-label="Remove">${icon('x')}</button></div>`;
+}
 
 function formHTML({ mode, day, existing, preset }) {
     const tracked = trackedIngredients();
@@ -117,7 +121,7 @@ function suggestBatchInputs(m, form, state) {
     if (state.inputsEdited || state.source !== 'made' || !batch?.inputs?.length) return;
     const made = num(form.elements.qty.value);
     const scale = made > 0 && batch.per ? made / batch.per : 1;
-    m.querySelector('[data-inputs]').innerHTML = batch.inputs.map((r) => inputRowHTML({ ingredientId: r.ingredientId, qty: r2(r.qty * scale) })).join('');
+    m.querySelector('[data-inputs]').innerHTML = batch.inputs.map((r) => inputRowHTML({ ...r, qty: rq(r.qty * scale) })).join('');
 }
 
 /** Turn on one button in a group of toggle buttons. */
@@ -146,7 +150,8 @@ function wireForm(m, ctl, state) {
         if (e.target.name === 'ingredientId') { state.inputsEdited = false; inputs.innerHTML = ''; suggest(); }
         if (e.target.matches('[data-in-ing]')) {
             state.inputsEdited = true;
-            e.target.parentElement.querySelector('[data-in-unit]').textContent = byId('ingredients', e.target.value)?.unit || '';
+            const ing = byId('ingredients', e.target.value);
+            e.target.parentElement.querySelector('[data-unit]').outerHTML = unitSelectHTML(ing, entryUnit(ing));
         }
         sync();
     });
@@ -171,8 +176,9 @@ async function saveRestock(form, state) {
     const amount = num(val(form, 'amount'));
     const later = checked(form, 'later');
     const inputs = [...form.querySelectorAll('.recipe-row')]
-        .map((row) => ({ ingredientId: row.querySelector('[data-in-ing]').value, qty: num(row.querySelector('[data-in-qty]').value) }))
-        .filter((x) => x.ingredientId && x.qty > 0);
+        .map((row) => ({ ingredientId: row.querySelector('[data-in-ing]').value, typed: num(row.querySelector('[data-in-qty]').value), unit: row.querySelector('[data-unit]').value }))
+        .filter((x) => x.ingredientId && x.typed > 0)
+        .map((x) => ({ ingredientId: x.ingredientId, ...readAmount(x.ingredientId, x.typed, x.unit) }));
     const ingredientId = val(form, 'ingredientId');
     await store.restockIngredient({
         ingredientId, qty: num(val(form, 'qty')), source: state.source,

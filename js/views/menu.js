@@ -5,6 +5,7 @@ import { S, byId } from '../store.js';
 import { esc, money, num, qtyFmt } from '../util.js';
 import { icon, toast, formModal, confirmDialog, val, checked } from '../ui.js';
 import { ingredientDialog } from './stock.js';
+import { entryUnit, unitSelectHTML, shownAmount, readAmount, amountText } from './unit-amount.js';
 
 export const SWATCHES = ['', '#8b5e3c', '#c2410c', '#b45309', '#4d7c0f', '#0f766e', '#1d4ed8', '#7c3aed', '#be185d'];
 let tab = 'products';
@@ -43,7 +44,7 @@ export function render(el) {
 
 const recipeText = (recipe) => (recipe || []).map((r) => {
     const ing = byId('ingredients', r.ingredientId);
-    return ing ? `${qtyFmt(r.qty)}${ing.unit} ${ing.name}${r.optional ? ' (optional)' : ''}` : '';
+    return ing ? `${amountText(r)} ${ing.name}${r.optional ? ' (optional)' : ''}` : '';
 }).filter(Boolean).join(' · ');
 
 function productsHTML() {
@@ -103,12 +104,16 @@ const ingSelect = (selected) => {
         <option value="${NEW_ING}">＋ New ingredient…</option></select>`;
 };
 
-/** withOptional: products can mark a row optional (free per-order choice, e.g. sweetener). */
+/**
+ * One recipe row: ingredient, amount per item, unit (any compatible unit: milk in L → ml).
+ * withOptional: products can mark a row optional (free per-order choice, e.g. sweetener).
+ */
 function recipeRow(r = {}, { allowNegative = false, withOptional = false } = {}) {
+    const ing = byId('ingredients', r.ingredientId);
     return `<div class="recipe-row ${withOptional ? 'has-opt' : ''}">
         ${ingSelect(r.ingredientId)}
-        <input type="number" data-qty inputmode="decimal" step="any" ${allowNegative ? '' : 'min="0"'} value="${r.qty ?? ''}" placeholder="qty" aria-label="Amount per item">
-        <span class="unit" data-unit>${esc(byId('ingredients', r.ingredientId)?.unit || '')}</span>
+        <input type="number" data-qty inputmode="decimal" step="any" ${allowNegative ? '' : 'min="0"'} value="${shownAmount(r)}" placeholder="qty" aria-label="Amount per item">
+        ${unitSelectHTML(ing, entryUnit(ing, r.unit))}
         ${withOptional ? `<label class="opt-toggle" title="Optional: only used when the customer asks for it (tap it on the order)">
             <input type="checkbox" data-optional ${r.optional ? 'checked' : ''}><span>Optional</span></label>` : ''}
         <button type="button" class="icon-btn" data-rmrow aria-label="Remove">${icon('x')}</button></div>`;
@@ -135,9 +140,10 @@ function wireRecipe(m, rowOpts, onChange = () => {}) {
                     });
                 }
             }
-            box.querySelectorAll('.recipe-row').forEach((row) => {
-                row.querySelector('[data-unit]').textContent = byId('ingredients', row.querySelector('[data-ing]').value)?.unit || '';
-            });
+            // New ingredient picked: offer its units, starting on the small one (L → ml).
+            const row = e.target.closest('.recipe-row');
+            const ing = byId('ingredients', row.querySelector('[data-ing]').value);
+            row.querySelector('[data-unit]').outerHTML = unitSelectHTML(ing, entryUnit(ing));
         }
         onChange();
     });
@@ -149,14 +155,34 @@ function readRecipe(m) {
     const seen = new Set();
     m.querySelectorAll('.recipe-row').forEach((row) => {
         const ingredientId = row.querySelector('[data-ing]').value;
-        const qty = num(row.querySelector('[data-qty]').value);
-        if (!ingredientId || ingredientId === NEW_ING || !qty) return;
+        const typed = num(row.querySelector('[data-qty]').value);
+        if (!ingredientId || ingredientId === NEW_ING || !typed) return;
         if (seen.has(ingredientId)) throw new Error(`${byId('ingredients', ingredientId).name} is listed twice.`);
         seen.add(ingredientId);
-        const optional = !!row.querySelector('[data-optional]')?.checked;
-        out.push(optional ? { ingredientId, qty, optional: true } : { ingredientId, qty });
+        // Saved in the ingredient's unit (stock maths), plus the unit it was typed in (display).
+        const { qty, unit } = readAmount(ingredientId, typed, row.querySelector('[data-unit]').value);
+        const item = { ingredientId, qty, unit };
+        if (row.querySelector('[data-optional]')?.checked) item.optional = true;
+        out.push(item);
     });
     return out;
+}
+
+/**
+ * One item using more than the whole stock almost always means the wrong unit
+ * (180 typed as L instead of ml). Point it out while editing.
+ */
+function showUnitWarning(m, recipe) {
+    const tooMuch = recipe.filter((r) => {
+        const ing = byId('ingredients', r.ingredientId);
+        return ing?.tracked && ing.stock > 0 && r.qty > ing.stock;
+    });
+    const box = m.querySelector('[data-unitwarn]');
+    box.hidden = !tooMuch.length;
+    box.innerHTML = tooMuch.map((r) => {
+        const ing = byId('ingredients', r.ingredientId);
+        return `${icon('alert')} <span><b>${esc(amountText(r))} ${esc(ing.name)}</b> per item is more than you have in stock (${qtyFmt(ing.stock)} ${esc(ing.unit)}). Check the unit next to the amount.</span>`;
+    }).join('<br>');
 }
 
 const swatchPicker = (current) => `<div class="swatches">${SWATCHES.map((c) =>
@@ -192,6 +218,7 @@ function productFormHTML(p, cats) {
                     <button type="button" class="btn btn-ghost btn-sm" data-addrow>${icon('plus')} Add another ingredient</button>
                     <span class="muted small" data-cost></span>
                 </div>
+                <div class="hint warn" data-unitwarn hidden></div>
                 <small class="muted">Not in the list? Pick <b>＋ New ingredient…</b> at the bottom of the dropdown.
                     Tick <b>Optional</b> for free extras some customers want (e.g. sweetener). It's left out unless you tap it on the order.</small>
             </fieldset>
@@ -215,6 +242,7 @@ function productDialog(p = null) {
                 const price = num(form.elements.price.value);
                 m.querySelector('[data-cost]').textContent = cost !== null && recipe.length
                     ? `Est. cost ${money(cost)}${price ? ` · margin ${Math.round(((price - cost) / price) * 100)}%` : ''}` : '';
+                showUnitWarning(m, recipe);
             };
             wireRecipe(m, { withOptional: true }, upd);
             wireSwatches(m);

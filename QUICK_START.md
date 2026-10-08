@@ -45,6 +45,7 @@ Picked the wrong unit? Edit the ingredient and change it. **g ↔ kg** and **ml 
 | Add-ons offered | Extra shot, Oat milk |
 
 - Ingredient not created yet? Pick **＋ New ingredient…** at the bottom of the ingredient dropdown.
+- Each row has a **unit picker**: milk stocked in L can be entered as **180 ml**. It starts on the small unit (ml / g). If an amount looks impossible, the editor warns you.
 - Tick **Optional** on a recipe row for free extras some customers want, e.g. *15 ml Simple syrup* in an Iced Americano. It's only used when you tap it on the order.
 - Use **Duplicate** to make a 22oz version quickly.
 

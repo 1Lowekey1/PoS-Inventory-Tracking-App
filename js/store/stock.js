@@ -76,7 +76,7 @@ export async function restockIngredient({ ingredientId, qty, source = 'bought', 
     const ops = [];
 
     const used = inputs
-        .map((inp) => ({ ingredientId: inp.ingredientId, qty: rq(inp.qty) }))
+        .map((inp) => ({ ingredientId: inp.ingredientId, qty: rq(inp.qty), ...(inp.unit ? { unit: inp.unit } : {}) }))
         .filter((inp) => inp.qty > 0 && inp.ingredientId !== ing.id && byId('ingredients', inp.ingredientId));
     for (const inp of used) {
         const src = byId('ingredients', inp.ingredientId);
@@ -104,10 +104,24 @@ const UNIT_FACTORS = { g: ['mass', 1], kg: ['mass', 1000], ml: ['vol', 1], L: ['
 
 /** Multiplier from one unit to another (kg → g = 1000), or null if they don't convert. */
 export function unitFactor(from, to) {
+    if (from === to) return 1;
     const a = UNIT_FACTORS[from], b = UNIT_FACTORS[to];
     if (!a || !b || a[0] !== b[0]) return null;
     return a[1] / b[1];
 }
+
+/** Units an amount of this unit can be entered in: 'L' → ['ml', 'L'], 'pcs' → ['pcs']. */
+export function compatibleUnits(unit) {
+    const dimension = UNIT_FACTORS[unit]?.[0];
+    if (!dimension) return [unit];
+    return Object.keys(UNIT_FACTORS).filter((u) => UNIT_FACTORS[u][0] === dimension);
+}
+
+/** Unit to enter per-item recipe amounts in: the small unit for bulk stock (L → ml, kg → g). */
+export const recipeUnitFor = (unit) => ({ L: 'ml', kg: 'g' })[unit] || unit;
+
+/** Convert an amount between compatible units; unchanged if they don't convert. */
+export const convertQty = (qty, from, to) => rq(Number(qty) * (unitFactor(from, to) ?? 1));
 
 /**
  * Ops that rescale every stored amount of an ingredient after a unit change

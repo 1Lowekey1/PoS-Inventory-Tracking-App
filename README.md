@@ -44,6 +44,7 @@ Per-cup costing is **optional**. If you enter a unit cost for an ingredient, rep
 - **Tracked** ingredients (beans, milk, syrups, cups) are deducted automatically whenever a product that uses them is sold.
 - **Untracked** items (ice, napkins) are things you can't measure per cup. They have no count. Log what you spend on them with **Log purchase** and the cost goes into expenses.
 - **Optional** recipe rows (e.g. syrup in an Iced Americano) are free extras that are only used when you tap them on the order.
+- **Recipe units:** recipe amounts can be typed in any compatible unit (milk stocked in L → **180 ml**). The picker starts on the small unit, and the editor warns if one item would use more than all your stock.
 - **Units:** changing an ingredient between **g ↔ kg** or **ml ↔ L** converts everything: stock, alert level, cost, every recipe and add-on, and past history. 1 kg becomes 1,000 g, not "1 g". For other changes (packs → pcs) the app asks how much you have in the new unit.
 
 #### Adding stock during an event: bought or made
@@ -244,6 +245,11 @@ Orders store the recipe used at sale time, so a void restores exactly what was t
 ---
 
 ## Changelog
+
+**3.3.0**: recipe units
+- Recipe rows have a **unit picker** with compatible units: milk stocked in **L** can be entered as **ml**, beans in **kg** as **g**. It starts on the small unit, and changing it keeps the typed number. Also on add-ons and "Made from" rows
+- Amounts are still saved in the ingredient's unit, so stock, reports and voids are unchanged; each row remembers the unit it was typed in
+- The product editor warns when one item would use more than all your stock (almost always the wrong unit)
 
 **3.2.2**: clearer "Out"
 - An "Out" product now says why: the tile (hover), a message when you tap it, and the Menu list name the ingredient that's short, e.g. "Out: Caramel syrup at 0 ml"

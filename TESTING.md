@@ -2,7 +2,7 @@
 
 There are two parts:
 
-1. **Automated edge-case suite:** 52 tests of the money, stock and data logic. Takes about 2 seconds.
+1. **Automated edge-case suite:** 53 tests of the money, stock and data logic. Takes about 2 seconds.
 2. **Hands-on edge cases:** things only a person with a real phone, printer or bad Wi-Fi can check.
 
 ---
@@ -15,13 +15,13 @@ python devserver.py
 
 Run it inside the `PopPOS` folder, then open **<http://localhost:5173/tests/>**. On GitHub Pages it's at `https://<you>.github.io/<repo>/tests/`.
 
-The suite uses its own throwaway database and deletes it afterwards, so **your real data is never touched**. You should see **"All 52 edge cases passed"**. A failure shows the expected vs actual value.
+The suite uses its own throwaway database and deletes it afterwards, so **your real data is never touched**. You should see **"All 53 edge cases passed"**. A failure shows the expected vs actual value.
 
 | Area | What's covered |
 |---|---|
 | Selling & stock | exact recipe deduction · untracked items never deducted · no decimal drift (`0.1 + 0.2`) · add-on swap can't add stock · add-on pricing · selling past zero (allowed / blocked, no half-saves) · "N left" counts the cart · no sale without an open day · empty order refused · practice mode uses stock and puts it back · practice voids not double-restored |
 | Extras & add-ons | optional ingredient only used when picked · optional rows ignored for "N left" and cost · add-on sold after paying (only adds stock, linked to order, not an extra item) · different extras stay on separate lines · group order 3-with-syrup + 2-plain keeps total and stock right · split single cups are regrouped at checkout |
-| Units | kg → g converts stock, alert, cost, recipes, add-ons, history and later voids · non-convertible unit uses the amount you enter |
+| Units | recipe amount typed as 180 ml for milk stocked in L saves 0.18 L and sells correctly · kg → g converts stock, alert, cost, recipes, add-ons, history and later voids · non-convertible unit uses the amount you enter |
 | Restock & costs | bought → expense (and drawer cash) · made → inputs used up, no double counting, batch recipe remembered · "add cost later" stays pending until filled, even after the event ended |
 | Planned days | 1-day event is done after closing day 1 (no "Day 2") · extra day extends the plan |
 | Cart & receipts | same item merges, empty cart drops its discount · "Apply to 3 of 5" keeps line order and merges back · split singles regroup at checkout · receipt rows fit the paper width, ₱ prints as P |
@@ -86,6 +86,7 @@ Each item lists **what to do** and **what should happen** (✅).
 | B12 | Ingredient in **packs** → change unit to **pcs** | Warning that it can't convert; must type the amount in pcs; recipes listed to check |
 | B13 | During an event, **Count** an item *higher* than the app shows | Asks *Log as restock* or *It's a correction*; restock opens the Restock form with the difference filled in |
 | B14 | Duplicate a product, add a new ingredient to the copy from "＋ New ingredient…" and leave its amount blank | Asked "No amount on hand?" first; if saved with 0 the copy shows **Out**, and tapping it says "Not enough Caramel syrup (0 ml left)"; Menu list shows the same reason |
+| B15 | Milk stocked in **L**. New product → recipe row → Milk | Unit picker shows **ml** (with L available); 180 ml saves and reopens as *180 ml*; switching to **L** shows "180 L Milk per item is more than you have in stock"; Cups shows a fixed *pcs* |
 
 ### C. Money & cash drawer
 
