@@ -1,258 +1,146 @@
-# 🔄 Migration Guide: Old to New Costing Model
+# Migrating from Booth POS v2 to PopPOS v3
 
-## What Changed?
-
-The app now uses a **batch purchase model** to fix a critical costing bug where drinks showed incorrect costs (e.g., ₱780 instead of ₱15.60).
-
-### Old Model (BROKEN)
-```
-Ingredient stored: costPerUnit = ₱0.50
-Problem: If you bought in bulk, you had to manually calculate per-unit cost
-```
-
-### New Model (FIXED)
-```
-Ingredient stores: 
-- Batch Cost = ₱780 (what you paid)
-- Batch Quantity = 1000ml (what you bought)
-System computes: ₱0.78/ml automatically
-```
-
-## Do You Need to Migrate?
-
-**If you're a NEW user:** No action needed! Just start using the app.
-
-**If you have EXISTING data:** You need to update your ingredients to the new format.
-
-## Migration Steps
-
-### Option 1: Fresh Start (Recommended for Small Datasets)
-
-1. **Backup your old data:**
-   - Reports → 💾 Backup Data
-   - Save the JSON file somewhere safe
-
-2. **Clear browser data:**
-   - Open browser console (F12)
-   - Run: `localStorage.clear(); location.reload();`
-
-3. **Re-enter ingredients with batch data:**
-   - Instead of "Cost per unit: ₱0.78"
-   - Enter "Batch cost: ₱780, Batch quantity: 1000ml"
-
-4. **Recreate products:**
-   - Same recipes, but products will now show correct costs
-
-### Option 2: Automatic Migration (For Existing Data)
-
-If you have lots of ingredients and products, use this automatic migration script:
-
-1. **Export your current data first:**
-   - Reports → 💾 Backup Data
-
-2. **Open browser console** (F12)
-
-3. **Paste this migration script:**
-
-```javascript
-// MIGRATION SCRIPT: Convert old model to new batch model
-(function migrateToBatchModel() {
-    console.log('Starting migration to batch purchase model...');
-    
-    // Get old ingredients
-    const oldIngredients = JSON.parse(localStorage.getItem('booth_ingredients') || '[]');
-    
-    if (oldIngredients.length === 0) {
-        console.log('No ingredients to migrate.');
-        return;
-    }
-    
-    // Ask user for default batch quantity
-    const defaultBatchQty = prompt(
-        'Migration: Enter default batch quantity for conversion\n\n' +
-        'For example:\n' +
-        '- If you typically buy 1000ml bottles, enter: 1000\n' +
-        '- If you buy 500g bags, enter: 500\n\n' +
-        'Enter default batch size:',
-        '1000'
-    );
-    
-    if (!defaultBatchQty) {
-        console.log('Migration cancelled.');
-        return;
-    }
-    
-    const batchQty = parseFloat(defaultBatchQty);
-    
-    // Convert each ingredient
-    const newIngredients = oldIngredients.map(ing => {
-        // If already migrated (has totalCost), skip
-        if (ing.totalCost !== undefined) {
-            console.log(`✓ ${ing.name} already migrated`);
-            return ing;
-        }
-        
-        // Convert old model to new
-        const totalQuantity = ing.currentStock || batchQty;
-        const totalCost = (ing.costPerUnit || 0) * totalQuantity;
-        
-        console.log(`Converting ${ing.name}:`);
-        console.log(`  Old: ${ing.costPerUnit}/unit, stock: ${ing.currentStock}`);
-        console.log(`  New: ₱${totalCost} for ${totalQuantity}${ing.unit}`);
-        
-        return {
-            id: ing.id,
-            name: ing.name,
-            unit: ing.unit,
-            totalCost: totalCost,
-            totalQuantity: totalQuantity,
-            lowStockThreshold: ing.lowStockThreshold
-        };
-    });
-    
-    // Save migrated data
-    localStorage.setItem('booth_ingredients', JSON.stringify(newIngredients));
-    
-    console.log('✓ Migration complete!');
-    console.log('Please review your ingredients and adjust batch costs as needed.');
-    console.log('Reloading page...');
-    
-    setTimeout(() => location.reload(), 2000);
-})();
-```
-
-4. **Press Enter** to run the script
-
-5. **Review all ingredients:**
-   - Go to Inventory tab
-   - Check that batch costs make sense
-   - Edit any that need adjustment
-
-### Option 3: Manual Update (Precise Control)
-
-For each ingredient:
-
-1. **Go to Inventory tab**
-2. **Tap Edit on the ingredient**
-3. **Convert your data:**
-   
-   **Example 1: You know the exact batch purchase**
-   ```
-   Old: Cost per unit = ₱0.78
-   
-   New:
-   Batch Cost = ₱780 (what you paid for the bottle)
-   Batch Quantity = 1000 ml (size of bottle)
-   ```
-   
-   **Example 2: You only know per-unit cost**
-   ```
-   Old: Cost per unit = ₱0.86
-   
-   New (estimate):
-   Batch Cost = ₱430 (₱0.86 × 500)
-   Batch Quantity = 500 g (typical bag size)
-   ```
-
-4. **Tap Save**
-
-5. **Repeat for all ingredients**
-
-## Verification
-
-After migration, verify costs are correct:
-
-1. **Go to Products tab**
-2. **Check each product's cost**
-3. **Look for warnings:**
-   - ⚠️ "Pricing Mismatch" = cost exceeds selling price
-   - This means you need to adjust either the recipe or the price
-
-### Expected Costs
-
-**Example: Iced Caramel Latte**
-```
-Recipe:
-- Syrup: 20ml
-- Coffee: 18g
-- Milk: 150ml
-- Cup: 1pc
-
-Cost Breakdown:
-- Syrup: ₱0.78/ml × 20ml = ₱15.60 ✓
-- Coffee: ₱0.86/g × 18g = ₱15.48 ✓
-- Milk: ₱0.28/ml × 150ml = ₱42.00 ✓
-- Cup: ₱4.30/pc × 1pc = ₱4.30 ✓
-
-Total: ₱77.38 ✓
-Selling Price: ₱120.00
-Profit: ₱42.62 (35.5%)
-```
-
-**Red Flags (MUST FIX):**
-```
-❌ Cost: ₱780.00 (entire batch assigned to one drink!)
-❌ Cost: ₱214.00 (partial batch incorrectly assigned)
-❌ Cost > Selling Price (losing money per sale)
-```
-
-## Common Issues
-
-### Issue: "All my costs are showing as ₱0.00"
-
-**Cause:** Batch quantity is zero or not set
-
-**Fix:** 
-1. Edit ingredient
-2. Set Batch Quantity > 0
-3. Save
-
-### Issue: "Cost looks too high"
-
-**Cause:** Batch cost might be wrong or batch quantity too small
-
-**Fix:**
-1. Edit ingredient
-2. Verify batch cost and quantity
-3. Example: If you paid ₱780 for 1L (1000ml), not 1ml
-4. Save
-
-### Issue: "Migration script not working"
-
-**Fix:**
-1. Make sure you copied the entire script
-2. Check browser console for errors
-3. If errors persist, use Manual Update option instead
-
-## FAQ
-
-**Q: Do I need to update my products?**  
-A: No, products automatically recalculate costs using the new ingredient data.
-
-**Q: Will my sales history be affected?**  
-A: No, past sales are preserved in their snapshot form.
-
-**Q: Can I undo the migration?**  
-A: Yes, restore from the backup JSON you created in step 1.
-
-**Q: What if I don't know my batch purchase costs?**  
-A: Estimate based on typical purchase sizes:
-- Syrups: Usually 1L (1000ml) bottles
-- Coffee: Usually 250g or 500g bags
-- Milk: Usually 1L (1000ml) cartons
-
-**Q: How do I restore from backup?**  
-A: See README.md "Restore (Import)" section
-
-## Support
-
-If you encounter issues:
-
-1. **Check the backup** - Make sure it's saved
-2. **Try Manual Update** - Slower but more reliable
-3. **Fresh Start** - If you have very few items
-4. **Document what went wrong** - Save error messages
+PopPOS v3 is a full rebuild of the Booth POS app. Your products, ingredients and past sales can come with you. Your v2 data is never modified or deleted by the import.
 
 ---
 
-**After migration, your costs will be mathematically correct and scale properly with batch size changes!** 🎯
+## What changed
+
+| Area | Booth POS v2 | PopPOS v3 |
+|---|---|---|
+| Selling | One product per sale, quantity popup on every tap | Order with many items, add-ons, discount, note; 2 taps for exact cash |
+| Payment | Always "cash" | Cash (with change), GCash, Maya, Card, custom methods |
+| Events | One session; ending it hid the data | Multi-day events with open/close day, cash float and cash count |
+| Costs | One fixed cost per event | **Capital** (up front) + **expenses** during the event (ice runs, fees) |
+| Profit | Revenue − fixed cost | Gross − (capital + expenses), same model, plus optional per-product margin estimates |
+| Undo | Last sale only, using the *current* recipe | Void **any** order; restores the recipe used **at sale time** |
+| Stock | Number overwritten by edits | Logged movements: sale, void, restock (bought or made, with cost), waste (with reason), count |
+| Recipes | Fixed list | Optional rows (e.g. syrup) picked per order, add-ons that add or swap ingredients |
+| Units | Changing the unit kept the number | g↔kg and ml↔L convert everything automatically |
+| Untracked items | Not possible | Ice etc. as cost-only items |
+| Reports | Current session only; history stored but not viewable | Any past event or single day; hourly sales, products, payments, expenses, ingredient usage, comparison, CSV |
+| Backup | Ingredients/products/current sales only; restore via browser console | Everything, one-tap backup and restore in Settings |
+| Storage | `localStorage` | IndexedDB with persistent-storage request |
+| Offline | Only if opened from a file | Installable app (PWA) with offline cache |
+| Hardware | none | ESC/POS receipt printer + cash drawer |
+| Demo mode | Separate demo sales | **Practice mode**: never counted in reports; uses stock while on and puts it back when turned off |
+
+### v2 bugs that no longer exist
+- The **Cancel** button in confirm dialogs did nothing.
+- **Reset Event** on the Reports screen wiped the running event's sales.
+- Undo after editing a recipe restored the wrong amounts.
+- "Restock low items" added a made-up amount (threshold × 2).
+- Stock showed float noise like `963.6999999 ml`.
+- Ended events were saved but there was no screen to view them, and they weren't in backups.
+- `nojekyll.txt` didn't work for GitHub Pages (v3 ships a correct `.nojekyll`).
+
+---
+
+## How data maps
+
+| v2 | v3 |
+|---|---|
+| Ingredient `unit: "grams"` | `g` (`ml`, `pcs` unchanged) |
+| Ingredient `totalQuantity` | Stock on hand (tracked ingredient) |
+| Ingredient `lowStockThreshold` | Low stock alert |
+| Ingredient `totalCost / totalQuantity` (very old versions) | Optional unit cost |
+| Product `sellingPrice` | Price |
+| Recipe `quantity` | Recipe `qty` |
+| Product `active` | "Show on Sell screen" |
+| Each ended event (history) | A **closed** event with one day |
+| Running event | A **running** event with Day 1 open (or closed, if v3 already has a running event). Planned days = 1; use *Add a day* if it continues |
+| Event `fixedCost` | A **Capital** entry |
+| Event `plannedOutput` | Planned output |
+| Each sale (`quantity` × product) | An order with one line (qty × unit price), paid in **Cash** |
+| Demo-mode sales | **Not imported** |
+| Starting/ending inventory snapshots | Event starting/ending stock (feeds the ingredient usage table) |
+
+**Not carried over:** demo sales, theme/demo settings, and payment types (v2 only had cash). Order numbers are assigned in time order per event.
+
+---
+
+## Option A: same website (automatic)
+
+Use this if v3 is published at **the same address** as v2 (e.g. you replace the files in the same GitHub Pages repo). Both versions then share the browser's storage, so v3 can see your v2 data.
+
+1. **First, back up v2:** in the old app, Reports → **💾 Backup Data**. Keep that file.
+2. Replace the repository files with the contents of the `PopPOS/` folder (see *Deploying* below).
+3. Open the site on the device that has your v2 data.
+4. Tap **Import from old Booth POS**. It's on the Sell screen while the menu is empty, and always under Settings → Data & backup.
+5. Check the summary ("Found 12 ingredients, 9 products, 3 events, 412 sales") → **Import**.
+
+The button disappears once imported, so you can't import twice by accident.
+
+## Option B: from a v2 backup file
+
+Use this for a different device or address, or if Option A doesn't show the button.
+
+1. In the old app: Reports → **💾 Backup Data** → you get `booth-data-YYYY-MM-DD.json`.
+2. In PopPOS: Settings → **Restore / import file** → pick that file → **Import**.
+
+> v2 backup files only contain ingredients, products and the **current** sales (not past events). Those sales are imported as one event called *Imported sales*. To bring past events too, use Option A on the original device.
+
+---
+
+## After importing: checklist
+
+1. **Stock tab:** check the amounts. Mark things like ice as **Untracked** (Edit → Untracked).
+2. **Menu:** add categories and colours, set up add-ons (oat milk, extra shot), re-order products.
+3. **Settings:** business name and receipt text, turn on GCash/Maya, set quick-cash bills.
+4. **Reports:** open an imported event and compare the gross with what v2 showed.
+5. **Settings → Download backup** to save your first v3 backup.
+
+---
+
+## Deploying v3 to your existing GitHub Pages repo
+
+```bash
+cd PoS-Inventory-Tracking-App
+git checkout -b v3
+```
+
+1. Delete the old `index.html`, `app.js`, `styles.css` and `nojekyll.txt`.
+2. Copy everything from `PopPOS/` into the repo root, **including the hidden `.nojekyll` file**.
+3. Commit and push, then merge to `main` when you're happy:
+
+```bash
+git add -A
+git commit -m "PopPOS v3"
+git push -u origin v3
+```
+
+GitHub Pages serves `main`, so the site updates when `v3` is merged. The site address stays the same, which is what Option A relies on.
+
+### Keeping v2 around (optional)
+
+To run both side by side for a while, put v2 in a subfolder (e.g. `/v2/`) of the same repo. It's still the same site address, so v3 can still import its data. Remove it once you're confident.
+
+### Updating PopPOS later (e.g. 3.1 → 3.2)
+
+1. Copy the new files over the old ones in the repo, including `sw.js` (its `VERSION` changes with every release).
+2. Commit and push.
+3. Open the app online on each device. When it shows **"A new version is ready → Update"**, tap **Update**.
+
+Your data stays on each device and upgrades itself, so no import is needed. Notes for **3.0 → 3.1**:
+- Events started in 3.0 count as **1-day** events. If one was running over several days, open **Event → Edit → How many days?**, or just use **Add a day**.
+- If practice mode was on during the update, practice sales made under 3.0 didn't use stock, so there's nothing to put back. From 3.1 on, practice sales use stock and turning practice off restores it.
+- A half-built order in the cart carries over.
+
+Notes for **3.1 → 3.2**: nothing to do. Group-order editing (*Apply to N of M cups*, *Split into single cups*) works on existing carts and menus.
+
+### Rolling back
+
+Your v2 data is untouched, so rolling back is just restoring the old files with `git revert` or checking out the previous commit. Anything sold in v3 stays in v3 (back it up from v3's Settings first).
+
+---
+
+## FAQ
+
+**Will the import double-count stock?**
+No. Stock comes from v2's current amounts. Imported sales don't deduct again.
+
+**My imported event shows a loss.**
+v2's fixed cost becomes capital. If you also bought things mid-event, add them as expenses on that event for a truer profit.
+
+**Can I import into a PopPOS that already has data?**
+Yes. Imported records are added alongside. If you're already running an event in v3, the imported running event is saved as closed (only one event can run at a time).

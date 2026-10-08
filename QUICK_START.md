@@ -1,203 +1,139 @@
-# ⚡ QUICK START GUIDE
+# PopPOS Quick Start
 
-## 🎯 Get Running in 3 Steps
-
-### Step 1: Open the App
-1. Download all 4 files to one folder
-2. Double-click `index.html`
-3. Opens in your browser - that's it!
-
-### Step 2: Add Your First Ingredient
-
-**IMPORTANT:** Enter what you actually paid for the batch!
-
-1. Tap **Inventory** (bottom nav)
-2. Tap **+ New Ingredient**
-3. Example setup:
-   ```
-   Name: Salted Caramel Syrup
-   Unit: ml
-   Batch Purchase Cost: 780.00 (what you paid)
-   Batch Quantity: 1000 (how much you bought)
-   Unit Cost: ₱0.78/ml (auto-calculated)
-   Low Stock Alert: 100
-   ```
-4. Tap **Save Ingredient**
-
-**How It Works:**
-- You bought 1000ml syrup for ₱780
-- System calculates: ₱780 ÷ 1000ml = ₱0.78 per ml
-- When a drink uses 20ml, cost = ₱0.78 × 20 = ₱15.60
-- **NOT ₱780!** The batch cost is never assigned to one drink.
-
-### Step 3: Create Your First Product
-1. Tap **Products** (bottom nav)
-2. Tap **+ New Product**
-3. Example setup:
-   ```
-   Product Name: Iced Coffee
-   Selling Price: 80.00
-   ✓ Active (checked)
-   ```
-4. Under Recipe:
-   - Tap **+ Add Ingredient**
-   - Select "Coffee"
-   - Enter quantity: 15
-5. Tap **Save Product**
-
-### Step 4: Make Your First Sale!
-1. Tap **Cashier** (bottom nav)
-2. Tap the "Iced Coffee" button
-3. ✅ Sale recorded!
-   - Revenue updated
-   - Stock deducted automatically
+From zero to selling in about 5 minutes. Full details are in [README.md](README.md).
 
 ---
 
-## 📱 Mobile Setup (Add to Home Screen)
+## 1. Open and install (once per device)
 
-### iPhone/iPad
-1. Open `index.html` in Safari
-2. Tap Share button (box with arrow)
-3. Scroll down → "Add to Home Screen"
-4. Tap "Add"
-5. App icon appears on home screen!
+1. Open your PopPOS link, e.g. `https://<you>.github.io/<repo>/`.
+2. Install it:
+   - **Android:** Chrome menu ⋮ → *Install app*
+   - **iPhone/iPad:** Safari Share → *Add to Home Screen*
+   - **Laptop / mini PC:** install icon in the Chrome/Edge address bar
+3. Open it from the home screen icon. From now on it works **without internet**.
 
-### Android
-1. Open `index.html` in Chrome
-2. Tap menu (three dots)
-3. "Add to Home Screen"
-4. Tap "Add"
-5. App icon appears on home screen!
+> Just want to look around? Tap **Try a sample coffee menu** on the Sell screen, then turn on **Settings → Practice mode** to sell without starting an event.
 
 ---
 
-## 🎨 Sample Coffee Booth Setup
+## 2. Set up your menu (once)
 
-Copy this setup to get started quickly:
+### Ingredients (Stock tab → **+ Ingredient**)
 
-### Ingredients to Add:
+| Field | Example | Notes |
+|---|---|---|
+| Name | Espresso beans | |
+| Tracked / Untracked | Tracked | Choose **Untracked** for things like ice that you can't measure per cup |
+| Unit | g | g, kg, ml, L, pcs, oz, shots, packs |
+| Amount on hand now | 1000 | |
+| Low stock alert at | 150 | Shows "Low" and a red badge on the Stock tab |
+| Cost per unit *(optional)* | 430 per 500 g → 0.86 | Only used for estimated margins |
 
-**Salted Caramel Syrup**
-- Unit: ml
-- Batch Cost: ₱780.00
-- Batch Quantity: 1000 ml
-- Unit Cost: ₱0.78/ml (auto)
-- Alert: 100 ml
+Add everything that goes into a drink: beans, milk, syrups, **cups and lids**.
 
-**Coffee Beans**
-- Unit: grams
-- Batch Cost: ₱430.00
-- Batch Quantity: 500 g
-- Unit Cost: ₱0.86/g (auto)
-- Alert: 100 g
+Picked the wrong unit? Edit the ingredient and change it. **g ↔ kg** and **ml ↔ L** convert automatically (1 kg → 1,000 g, recipes included).
 
-**Fresh Milk**
-- Unit: ml
-- Batch Cost: ₱280.00
-- Batch Quantity: 1000 ml
-- Unit Cost: ₱0.28/ml (auto)
-- Alert: 200 ml
+### Products (Menu → **+ Product**; on phones Menu is under **More**)
 
-**16oz Cup**
-- Unit: pcs
-- Batch Cost: ₱215.00
-- Batch Quantity: 50 pcs
-- Unit Cost: ₱4.30/pc (auto)
-- Alert: 10 pcs
+| Field | Example |
+|---|---|
+| Name | Iced Latte |
+| Price | 120 |
+| Category *(optional)* | Coffee |
+| Recipe (per 1 drink) | 18 g Espresso beans · 180 ml Fresh milk · 1 pcs 16oz cups |
+| Add-ons offered | Extra shot, Oat milk |
 
-**Plastic Straw**
-- Unit: pcs
-- Batch Cost: ₱19.00
-- Batch Quantity: 50 pcs
-- Unit Cost: ₱0.38/pc (auto)
-- Alert: 10 pcs
+- Ingredient not created yet? Pick **＋ New ingredient…** at the bottom of the ingredient dropdown.
+- Tick **Optional** on a recipe row for free extras some customers want, e.g. *15 ml Simple syrup* in an Iced Americano. It's only used when you tap it on the order.
+- Use **Duplicate** to make a 22oz version quickly.
 
-### Products to Create:
+### Add-ons (Menu → Add-ons)
 
-**Iced Americano - ₱60**
-- Coffee: 18g
-- Cup: 1 pc
-- Straw: 1 pc
+| Add-on | Price change | Ingredient change |
+|---|---|---|
+| Extra shot | +30 | +18 g beans |
+| Oat milk | +25 | −180 ml fresh milk, +180 ml oat milk |
+| Less sweet | 0 | *(none)* |
 
-**Iced Latte - ₱85**
-- Coffee: 18g
-- Milk: 150ml
-- Cup: 1 pc
-- Straw: 1 pc
-
-**Iced Caramel Latte - ₱100**
-- Coffee: 18g
-- Milk: 150ml
-- Caramel Syrup: 20ml
-- Cup: 1 pc
-- Straw: 1 pc
+**Optional ingredient or add-on?** Free and just "with or without" (sweetener) → optional recipe row. Costs extra or swaps an ingredient (extra shot, oat milk) → add-on.
 
 ---
 
-## 💡 Pro Tips
+## 3. Event day
 
-✅ **Always backup at end of day**
-   Reports → 💾 Backup Data
+### Before opening
 
-✅ **Set low stock alerts**
-   Get notified before running out
+1. **Event tab → Start event**
+   - Name, e.g. *Weekend Market*
+   - **How many days?** 1 for a one-day pop-up, 2 for a weekend, and so on
+   - **Capital**: what you spent up front, either one line with the total or itemised
+   - **Planned output** *(optional)*: how many items you expect to sell. Shows the price you need to average to break even.
+   - Leave **Open Day 1 now** ticked and enter your **starting cash** (float), e.g. ₱500
+2. Did the amounts you brought differ from the app? **Stock → Stock count** and fix them.
 
-✅ **Check profit margins**
-   Products screen shows cost vs price
+Closed the form by accident? Open **Start event** again: what you typed is still there.
 
-✅ **Use undo wisely**
-   Only works for last sale!
+### While selling
 
-✅ **Test before event**
-   Make test sales, verify everything works
+| To do this | Do this |
+|---|---|
+| Sell | Tap products → **Charge** → choose Cash/GCash → **Complete sale** |
+| Several of one item | Tap the tile several times, or **hold** it for quantity and add-ons |
+| Sweet / with syrup | Tap the **+ Simple syrup** chip under that line (free) |
+| Group order where some cups differ (e.g. 3 of 5 want syrup) | Tap the line → **Apply to** `3 of 5 cups` → pick syrup → **Update**. Repeat for other combinations |
+| Almost every cup is different | Tap the line → **Split into single cups** → set each cup with its chips |
+| Extra shot for someone who already paid | **+ Add-on** (top of the order) → pick their order # → charge it |
+| Give change | Tap the bill the customer handed you (₱500…); change shows big |
+| Mistake right after a sale | Tap **Undo** on the message at the top (shown for 5 seconds) |
+| Mistake on an older sale | Orders → tap it → **Void** (stock goes back) |
+| Remember who ordered what | Add a **Name / note** when charging; it shows in **To make** |
+| Hand over a drink | Tap its chip in the **To make** strip |
+| Bought ice / supplies | Event → **+ Expense** (tick *Paid from drawer* if you used till cash) |
+| Ran to the store for more milk | Event → **Restock** → Milk → **Bought** → amount + cost |
+| Made a new batch of syrup | Event → **Restock** → Syrup → **Made** → amount (sugar used is filled in from last time). Don't know the cost yet? Tick **I'll add the cost later** |
+| Spilled / remade a drink | Stock → **Waste** |
+| Same order again | **↻ #N** button in the empty order panel |
 
----
+### Closing the day
 
-## 🆘 Quick Fixes
+1. **Event → Close day**
+2. Count the cash and type it in. You'll see **over / short** against what's expected.
+3. *(Recommended)* expand **Count leftover stock** and type real amounts.
+4. Add a note (weather, crowd, what ran out).
+5. Tap **Print summary** for a full-page summary on any printer (optional), and **Backup** to save the file somewhere safe.
 
-**Product won't sell?**
-→ Check if ingredient stock is enough
+More days to go? Next morning: **Event → Open day 2**.
 
-**Button grayed out?**
-→ "Out of Stock" - restock ingredients
+### Ending the event
 
-**Data disappeared?**
-→ Did you clear browser data? Restore from backup
+After the **last planned day**, the close-day screen offers **End event** (or **Add a day** if you're staying longer). You can also end it anytime from the Event tab once the day is closed. You'll land on the full report. Leftover stock stays for your next event.
 
-**Page won't load?**
-→ Make sure all 3 files (.html, .css, .js) are in same folder
-
----
-
-## 📊 Daily Workflow
-
-**Morning:**
-1. Check inventory levels
-2. Restock low items
-3. Verify all products active
-
-**During Event:**
-1. Tap products to record sales
-2. Watch for low stock alerts
-3. Restock as needed
-
-**End of Day:**
-1. Go to Reports
-2. Review total revenue
-3. Export backup (💾 button)
-4. Optional: Reset Event for tomorrow
+Costs you marked *add later* show as **Cost pending**. Fill them in on the Event tab, or after the event in the event's report under **Costs still to enter**.
 
 ---
 
-## 🎯 You're Ready!
+## 4. After the event
 
-The system is designed to be intuitive. Just start adding ingredients and products - everything else handles itself.
-
-**Need detailed help?** Check `README.md` for full documentation.
-
-**Want to customize?** All code is in `app.js` - fully commented!
+**Reports** tab:
+- Pick the event and **All days** or a single day
+- Net profit = Gross − (Capital + Expenses)
+- Sales by hour (when to staff up), best sellers, payment split, ingredient usage, waste
+- **CSV** for Excel / Google Sheets · **Print** for a paper copy
 
 ---
 
-**Good luck with your booth! 🚀☕**
+## Optional: receipt printer & cash drawer
+
+Settings → **Receipt printer & cash drawer** → *USB (COM / serial)* (try first), *USB (direct)* or *Bluetooth* → **Test print** → **Open drawer**.
+Works in Chrome/Edge on Windows, Android, ChromeOS and Mac. iPhone/iPad use the normal print dialog.
+
+---
+
+## Daily checklist
+
+**Before:** ☐ Phone/tablet charged ☐ App opens offline ☐ Event started / day opened ☐ Float counted ☐ Stock count matches
+
+**During:** ☐ Log ice/supply runs as expenses ☐ Log bought/made stock with Event → Restock ☐ Watch the *Low* badge on Stock
+
+**After:** ☐ Close day with cash count ☐ Leftover stock counted ☐ **Backup downloaded** ☐ Note what sold out ☐ No **Cost pending** left (by the end of the event)

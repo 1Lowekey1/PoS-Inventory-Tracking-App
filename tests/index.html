@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PopPOS Edge Cases</title>
+    <style>
+        :root { --bg: #faf7f2; --surface: #fff; --text: #231c16; --muted: #7a6f63; --line: #e4dccf; --good: #15803d; --bad: #b91c1c; color-scheme: light; }
+        @media (prefers-color-scheme: dark) {
+            :root { --bg: #14110e; --surface: #1d1915; --text: #f3ede6; --muted: #9b8f82; --line: #3a3129; --good: #4ade80; --bad: #f87171; color-scheme: dark; }
+        }
+        body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+        main { max-width: 860px; margin: 0 auto; }
+        h1 { margin: 0 0 4px; font-size: 1.4rem; }
+        .summary { margin: 12px 0; padding: 12px 14px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); font-weight: 700; }
+        .summary.ok { border-color: var(--good); color: var(--good); }
+        .summary.fail { border-color: var(--bad); color: var(--bad); }
+        ol { padding-left: 1.4rem; }
+        li { padding: 6px 0; border-bottom: 1px solid var(--line); }
+        .pass::marker { color: var(--good); }
+        .fail::marker { color: var(--bad); }
+        .tag { font-weight: 700; margin-right: .4rem; }
+        .pass .tag { color: var(--good); }
+        .fail .tag { color: var(--bad); }
+        .why { display: block; color: var(--muted); font-size: .88rem; }
+        pre { white-space: pre-wrap; color: var(--bad); font-size: .82rem; margin: 4px 0 0; }
+        button { font: inherit; padding: .5rem 1rem; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; }
+        .muted { color: var(--muted); }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>PopPOS edge-case tests</h1>
+        <p class="muted">Runs against a separate, throwaway database. Your real PopPOS data is never touched.</p>
+        <button id="run">Run again</button>
+        <div id="summary" class="summary">Running…</div>
+        <ol id="results"></ol>
+    </main>
+    <script type="module" src="edge-cases.js"></script>
+</body>
+</html>
